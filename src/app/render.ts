@@ -481,6 +481,7 @@ export class Renderer {
     c.save();
     c.translate(x, y);
     if (e.dying) c.globalAlpha = 0.55;
+    else if (e.stray) c.globalAlpha = 0.3; // a Bullet that will miss: background noise, nothing to type
     if (e.kind === "missile") {
       c.rotate(e.angle + Math.PI / 2); // art points up
       const flick = 1 + Math.sin(time * 40 + e.id) * 0.06;
@@ -585,7 +586,7 @@ export class Renderer {
   private drawLabel(e: Enemy, alpha: number, locked: boolean, f: FrameInfo, danger = false, hint = 0, jammed = false): void {
     const c = this.ctx;
     const text = remaining(e);
-    if (!text) return;
+    if (!text || e.stray) return;
     // a warned, on-course Bullet: bigger label that pulses so it stands out among words
     const alarm = danger && e.warned && !locked;
     const pulse = alarm ? 0.5 + 0.5 * Math.sin(f.time * 14) : 0;

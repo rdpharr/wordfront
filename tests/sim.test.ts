@@ -249,6 +249,75 @@ describe("enemies", () => {
     for (const b of spawns.filter((e) => e.kind === "bullet")) expect(b.word).toMatch(/^[a-z]$/);
   });
 
+  it("Destroyers and Oppressors hold fire once they are within noFireWithin of the squad", () => {
+    const s = emptySim();
+    const near = cfg.player.y - cfg.destroyer.noFireWithin + 60; // already inside the range
+    s.addEnemy("destroyer", 100, near, "elephant", Math.PI / 2);
+    s.addEnemy("oppressor", 400, near, "chocolate", Math.PI / 2);
+    const far = s.addEnemy("destroyer", 270, 20, "giraffe", Math.PI / 2); // far up: still fires
+    const spawns = ofType(stepN(s, 60 * 7 + 1), "spawn");
+    expect(spawns.filter((e) => e.kind === "missile").map((e) => e.parent)).toEqual([far.id]);
+    expect(spawns.filter((e) => e.kind === "bullet")).toHaveLength(0);
+    expect(cfg.destroyer.noFireWithin).toBeGreaterThan(cfg.height * 0.4);
+  });
+
+  it("each letter typed on a shooter pushes its next shot back, never past a full reload", () => {
+    const s = emptySim();
+    const d = s.addEnemy("destroyer", 100, 20, "elephant", Math.PI / 2);
+    stepN(s, 60 * 4); // 1 s from firing
+    const before = d.fireT;
+    typeEach(s, "ele");
+    expect(d.fireT).toBeCloseTo(before + 3 * cfg.destroyer.delayPerLetter - 3 / 60, 6);
+    // with the delay it has not fired when it otherwise would have
+    expect(ofType(stepN(s, 60 * 2), "spawn").filter((e) => e.kind === "missile")).toHaveLength(0);
+    // a fresh Oppressor typed almost to the end stays at (just under) a full reload
+    const fresh = s.addEnemy("oppressor", 400, 0, "watermelon", Math.PI / 2);
+    s.step([{ kind: "backspace" }]); // drop the Destroyer
+    typeEach(s, "watermelo");
+    expect(s.jamT).toBe(0);
+    expect(fresh.typed).toBe(9);
+    expect(fresh.fireT).toBeLessThanOrEqual(cfg.oppressor.fireEvery);
+    expect(fresh.fireT).toBeGreaterThan(cfg.oppressor.fireEvery - 0.1);
+  });
+
+  it("an Oppressor's off-course Bullets are strays: faint, untargetable, and don't hold up the wave", () => {
+    const s = emptySim();
+    const o = s.addEnemy("oppressor", cfg.player.x, 0, "chocolate", Math.PI / 2);
+    stepN(s, 60 * cfg.oppressor.fireEvery + 1);
+    const bullets = s.enemies.filter((e) => e.kind === "bullet");
+    expect(bullets).toHaveLength(cfg.oppressor.fanCountStart);
+    const onTarget = bullets.filter((b) => !b.stray);
+    expect(onTarget).toHaveLength(1); // the middle one, dead on the squad
+    expect(s.incoming(onTarget[0]!)).toBe(true);
+    for (const b of bullets.filter((b) => b.stray)) expect(s.incoming(b)).toBe(false);
+    // a stray's letter (if no live word starts with it) is a plain miss
+    const live = new Set([o.word[0], onTarget[0]!.word]);
+    const lone = bullets.find((b) => b.stray && !live.has(b.word));
+    expect(lone).toBeDefined();
+    if (lone) {
+      expect(s.predict(lone.word)).toBe("miss");
+      typeEach(s, lone.word);
+      expect(s.lockTarget).toBeNull();
+      expect(lone.typed).toBe(0);
+      while (s.jamT > 0) s.step();
+    }
+    typeEach(s, o.word);
+    typeEach(s, onTarget[0]!.word);
+    stepN(s, 90); // bolts land
+    expect(s.phase).toBe("break");
+    expect(s.enemies.some((e) => e.stray && !e.dying)).toBe(true); // still drifting off screen
+  });
+
+  it("with dimStrays off, every Bullet in a fan is a target", () => {
+    const raw = structuredClone(rawConfig);
+    raw.enemies.bullet.dimStrays = false;
+    const s = newSim(1, raw);
+    s.queue = [];
+    s.addEnemy("oppressor", 270, 0, "chocolate", Math.PI / 2);
+    stepN(s, 60 * 7 + 1);
+    expect(s.enemies.filter((e) => e.kind === "bullet" && e.stray)).toHaveLength(0);
+  });
+
   it("warns once when an on-course Bullet is about to hit, and not for one that will miss", () => {
     const s = emptySim();
     const speed = cfg.enemies.bullet.speed * Math.pow(cfg.waves.speedGrowth, 1);

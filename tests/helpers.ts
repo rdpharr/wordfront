@@ -55,7 +55,7 @@ export function botInputs(sim: Sim, every: number, missEvery = 0, counter = { n:
   const lock = sim.lockTarget;
   let target = lock;
   if (!target) {
-    const live = sim.enemies.filter((e) => !e.dying);
+    const live = sim.enemies.filter((e) => !e.dying && !e.stray);
     if (!live.length) return [];
     target = live.reduce((a, b) => (sim.dist(a) <= sim.dist(b) ? a : b));
   }

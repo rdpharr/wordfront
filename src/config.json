@@ -20,12 +20,12 @@
     "mine": { "len": [3, 6], "speed": 30, "hitbox": [12, 12] },
     "destroyer": {
       "len": [7, 10], "speed": 20, "hitbox": [24, 34],
-      "fireEvery": 5, "noFireWithin": 100,
+      "fireEvery": 5, "noFireWithin": 300, "delayPerLetter": 0.5,
       "aimXRange": [0.15, 0.85]
     },
     "oppressor": {
       "len": [9, 12], "speed": 15, "hitbox": [36, 58],
-      "fireEvery": 7, "noFireWithin": 100,
+      "fireEvery": 7, "noFireWithin": 300, "delayPerLetter": 0.5,
       "fanCountStart": 5, "fanCountMax": 8, "fanGrowEvery": 7, "fanSpreadDeg": 100,
       "_fanNote": "Bullets per fan: fanCountStart on the first Oppressor wave, one more every fanGrowEvery waves after it, up to fanCountMax. An odd count puts one bullet dead on the squad; at range roughly one in every 11 degrees of spread is on target."
     },
@@ -33,7 +33,8 @@
       "len": [2, 5], "speed": 35, "hitbox": [8, 15],
       "straightFor": 1.0, "turnFor": 0.7, "turnRate": 4.0
     },
-    "bullet": { "len": [1, 1], "speed": 50, "hitbox": [2, 2] }
+    "bullet": { "len": [1, 1], "speed": 50, "hitbox": [2, 2], "dimStrays": true },
+    "_shooterNote": "Destroyers and Oppressors hold fire within noFireWithin of the squad (the bottom half of the field at 300). Each correct letter typed on one pushes its next shot back by delayPerLetter seconds, never past a full fireEvery. With dimStrays, Bullets whose straight line misses the squad are drawn faint with no word: they can't be targeted and don't hold up the end of a wave."
   },
   "hit": {
     "knockback": 20,
@@ -50,7 +51,7 @@
     "_note": "After this many wrong letters in a row on a locked word, a \"Backspace: switch target\" hint shows until the next right letter, a release or the word dying. 0 turns it off."
   },
   "accuracy": {
-    "jamSeconds": 0.3,
+    "jamSeconds": 0.6,
     "_note": "A wrong letter (or one that matches no word) jams the rifles for this many seconds. Letters typed during a jam are dropped: they don't count as hits or misses and don't extend the jam, so mashing gains nothing. Backspace and Enter still work. 0 turns it off."
   },
   "bolt": { "speed": 800 },

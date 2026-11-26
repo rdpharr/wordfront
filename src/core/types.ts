@@ -31,6 +31,8 @@ export interface Enemy {
   closeCalled: boolean;
   /** an on-course Bullet that has had its incoming warning */
   warned: boolean;
+  /** a Bullet whose straight line misses the squad: faint, untargetable, ignored for the wave end */
+  stray: boolean;
   missesOnWord: number;
   spawnMs: number;
 }

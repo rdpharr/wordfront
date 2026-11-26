@@ -50,7 +50,7 @@ for (let r = 0; r < runs; r++) {
     const inputs: SimInput[] = [];
     if (--wait <= 0) {
       wait = Math.max(1, Math.round(stepsPerLetter * rng.range(0.6, 1.5)));
-      const live = sim.enemies.filter((e) => !e.dying);
+      const live = sim.enemies.filter((e) => !e.dying && !e.stray);
       const target = sim.lockTarget ?? live.sort((a, b) => sim.edgeDist(a) - sim.edgeDist(b))[0];
       if (target) {
         const want = target.word[target.typed]!;

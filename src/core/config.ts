@@ -26,10 +26,11 @@ export interface Tunables {
   offscreenTop: number;
   player: { x: number; y: number; hw: number; hh: number };
   enemies: Record<EnemyKind, EnemyTune>;
-  destroyer: { fireEvery: number; noFireWithin: number; aimXRange: [number, number] };
+  destroyer: { fireEvery: number; noFireWithin: number; delayPerLetter: number; aimXRange: [number, number] };
   oppressor: {
     fireEvery: number;
     noFireWithin: number;
+    delayPerLetter: number;
     fanCountStart: number;
     fanCountMax: number;
     fanGrowEvery: number;
@@ -37,6 +38,8 @@ export interface Tunables {
   };
   warnSeconds: number;
   snapShot: boolean;
+  /** Bullets that will miss the squad are faint, untargetable and don't hold up the wave end. */
+  dimStrays: boolean;
   switchHintAfter: number;
   jamSeconds: number;
   missile: { straightFor: number; turnFor: number; turnRate: number };
@@ -90,11 +93,13 @@ export function resolveConfig(c: RawConfig = raw): Tunables {
     destroyer: {
       fireEvery: E.destroyer.fireEvery,
       noFireWithin: E.destroyer.noFireWithin * k,
+      delayPerLetter: E.destroyer.delayPerLetter ?? 0,
       aimXRange: [E.destroyer.aimXRange[0]!, E.destroyer.aimXRange[1]!],
     },
     oppressor: {
       fireEvery: E.oppressor.fireEvery,
       noFireWithin: E.oppressor.noFireWithin * k,
+      delayPerLetter: E.oppressor.delayPerLetter ?? 0,
       fanCountStart: E.oppressor.fanCountStart,
       fanCountMax: E.oppressor.fanCountMax,
       fanGrowEvery: E.oppressor.fanGrowEvery,
@@ -112,6 +117,7 @@ export function resolveConfig(c: RawConfig = raw): Tunables {
     },
     warnSeconds: c.warning.seconds,
     snapShot: c.warning.snapShot,
+    dimStrays: E.bullet.dimStrays ?? false,
     switchHintAfter: c.hints.switchAfterMisses,
     jamSeconds: c.accuracy.jamSeconds,
     boltSpeed: c.bolt.speed * k,

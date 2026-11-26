@@ -162,7 +162,7 @@ export class Sim {
       this.phase === "wave" &&
       !strikeResets &&
       this.queue.length === 0 &&
-      !this.enemies.some((e) => !e.dying)
+      !this.enemies.some((e) => !e.dying && !e.stray)
     ) {
       this.endWave();
     }
@@ -172,7 +172,7 @@ export class Sim {
 
   private typeChar(ch: string, lookahead: string): void {
     const locked = this.lockTarget;
-    const live = this.enemies.filter((e) => !e.dying);
+    const live = this.enemies.filter((e) => !e.dying && !e.stray);
     if (locked) {
       const expected = locked.word[locked.typed]!;
       if (ch === expected) {
@@ -228,6 +228,7 @@ export class Sim {
   private correctLetter(e: Enemy, ch: string): void {
     const mult = this.scoring.hit();
     e.typed++;
+    this.suppress(e);
     e.pendingBolts++;
     this.bolts.push({
       id: this.nextId++,
@@ -263,6 +264,13 @@ export class Sim {
       });
       if (e.kind !== "bullet") this.creditRefill();
     }
+  }
+
+  /** A letter landing on a Destroyer or Oppressor pushes its next shot back (never past a full reload). */
+  private suppress(e: Enemy): void {
+    if (e.kind !== "destroyer" && e.kind !== "oppressor") return;
+    const t = e.kind === "destroyer" ? this.cfg.destroyer : this.cfg.oppressor;
+    e.fireT = Math.min(t.fireEvery, e.fireT + t.delayPerLetter);
   }
 
   /** One typed word toward earning an airstrike back. */
@@ -375,7 +383,7 @@ export class Sim {
 
   private takenFirsts(): Set<string> {
     const s = new Set<string>();
-    for (const e of this.enemies) if (!e.dying) s.add(remaining(e)[0]!);
+    for (const e of this.enemies) if (!e.dying && !e.stray) s.add(remaining(e)[0]!);
     return s;
   }
 
@@ -432,6 +440,7 @@ export class Sim {
       pendingBolts: 0,
       closeCalled: false,
       warned: false,
+      stray: false,
       missesOnWord: 0,
       spawnMs: this.tMs,
     };
@@ -514,7 +523,8 @@ export class Sim {
       const fanCount = fanCountFor(this.wave, this.cfg.waves, this.cfg.oppressor);
       for (let i = 0; i < fanCount; i++) {
         const a = toPlayer - fanSpread / 2 + (fanCount === 1 ? fanSpread / 2 : (i * fanSpread) / (fanCount - 1));
-        this.newEnemy("bullet", e.x, e.y, a, e.id);
+        const b = this.newEnemy("bullet", e.x, e.y, a, e.id);
+        b.stray = this.cfg.dimStrays && !this.incoming(b);
       }
       this.emit({ type: "fire", id: e.id, kind: "bullets" });
     }
@@ -654,7 +664,7 @@ export class Sim {
   private trackWaveStats(): void {
     let live = 0;
     for (const e of this.enemies) {
-      if (e.dying) continue;
+      if (e.dying || e.stray) continue;
       live++;
       const d = this.edgeDist(e);
       if (this.closest === null || d < this.closest) this.closest = d;
@@ -739,7 +749,7 @@ export class Sim {
       if (lock.word[lock.typed] === ch) return "hit";
       return this.cfg.snapShot && this.enemies.some((e) => e.kind === "bullet" && e.warned && !e.dying && e.word === ch) ? "hit" : "miss";
     }
-    const live = this.enemies.filter((e) => !e.dying);
+    const live = this.enemies.filter((e) => !e.dying && !e.stray);
     if (!live.length) return "ignore";
     return live.some((e) => remaining(e)[0] === ch) ? "hit" : "miss";
   }
