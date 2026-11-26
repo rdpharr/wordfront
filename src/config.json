@@ -1,0 +1,84 @@
+{
+  "_comment": "All gameplay tunables. Distances and speeds are in the original 480x720 units and are multiplied by world.scale at load time, so enemies take as long to reach the squad on the taller 540x960 playfield. Times are seconds.",
+  "world": {
+    "width": 540,
+    "height": 960,
+    "scale": 1.3333333,
+    "simHz": 60,
+    "spawnYAbove": 30,
+    "spawnXMargin": 10,
+    "offscreenMargin": 40,
+    "offscreenTop": 150
+  },
+  "player": {
+    "x": 270,
+    "yFromBottom": 110,
+    "hitbox": { "w": 240, "h": 96 },
+    "_hitboxNote": "Hitbox is in world px (not scaled) and covers what is drawn: the top of the sandbag arch and all five soldiers. The original game used 8x8."
+  },
+  "enemies": {
+    "mine": { "len": [3, 6], "speed": 30, "hitbox": [12, 12] },
+    "destroyer": {
+      "len": [7, 10], "speed": 20, "hitbox": [24, 34],
+      "fireEvery": 5, "noFireWithin": 100,
+      "aimXRange": [0.15, 0.85]
+    },
+    "oppressor": {
+      "len": [9, 12], "speed": 15, "hitbox": [36, 58],
+      "fireEvery": 7, "noFireWithin": 100,
+      "fanCountStart": 5, "fanCountMax": 8, "fanGrowEvery": 7, "fanSpreadDeg": 100,
+      "_fanNote": "Bullets per fan: fanCountStart on the first Oppressor wave, one more every fanGrowEvery waves after it, up to fanCountMax. An odd count puts one bullet dead on the squad; at range roughly one in every 11 degrees of spread is on target."
+    },
+    "missile": {
+      "len": [2, 5], "speed": 35, "hitbox": [8, 15],
+      "straightFor": 1.0, "turnFor": 0.7, "turnRate": 4.0
+    },
+    "bullet": { "len": [1, 1], "speed": 50, "hitbox": [2, 2] }
+  },
+  "hit": {
+    "knockback": 20,
+    "knockbackRandom": 20,
+    "haltFor": 0.3
+  },
+  "warning": {
+    "seconds": 2.5,
+    "snapShot": true,
+    "_note": "A Bullet on course for the squad gets a warning (sound, bigger pulsing label) this many seconds before it would hit. With snapShot, typing a warned Bullet's letter shoots it even while locked on another word, and the lock stays."
+  },
+  "hints": {
+    "switchAfterMisses": 2,
+    "_note": "After this many wrong letters in a row on a locked word, a \"Backspace: switch target\" hint shows until the next right letter, a release or the word dying. 0 turns it off."
+  },
+  "bolt": { "speed": 800 },
+  "emp": {
+    "count": 3, "max": 3, "radius": 260, "duration": 1.0,
+    "refillEvery": 12,
+    "_refillNote": "Typing this many words (Bullets don't count) earns an airstrike back, up to max. The count only runs while below max.",
+    "resetWave": true,
+    "respawnDelay": 1.5,
+    "_resetWaveNote": "With resetWave, an airstrike starts the wave over: when the strike ends, the queue refills so the enemies left to kill (on screen plus still to come) are the wave's full count again, with new words. A strike buys breathing room, not progress. No new enemy spawns for duration + respawnDelay seconds after a strike."
+  },
+  "waves": {
+    "startMines": 3,
+    "destroyerEvery": 3,
+    "oppressorEvery": 7,
+    "spawnLettersPerSec": 3.2,
+    "spawnLettersPerSecGrowth": 1.05,
+    "spawnLettersPerSecMax": 8.0,
+    "spawnGapMin": 0.4,
+    "spawnGapMax": 4.0,
+    "minOnScreen": 2,
+    "_minOnScreenNote": "While a wave still has enemies to send, fewer than this many words on screen (Bullets don't count) brings the next one in early, but never sooner than spawnGapMin after the last spawn.",
+    "_spawnNote": "Spawns are paced by letters, not a fixed interval: after each enemy the next waits (its word length / the wave's letters-per-second), clamped to spawnGapMin..spawnGapMax. Letters per second start at spawnLettersPerSec on wave 1 and grow by spawnLettersPerSecGrowth each wave, up to spawnLettersPerSecMax.",
+    "speedGrowth": 1.05,
+    "breakFor": 2.0
+  },
+  "words": { "uniqueFirstLetterTries": 20 },
+  "scoring": {
+    "multiplierSteps": [
+      { "streak": 20, "multiplier": 2 },
+      { "streak": 50, "multiplier": 3 }
+    ]
+  },
+  "logging": { "closeCallDistance": 60, "maxRuns": 200, "maxBytes": 209715200 }
+}

@@ -1,0 +1,113 @@
+{
+  "barricade": {
+    "w": 520,
+    "h": 229
+  },
+  "soldier_up": {
+    "w": 73,
+    "h": 112
+  },
+  "soldier_left": {
+    "w": 109,
+    "h": 112
+  },
+  "shambler": {
+    "w": 80,
+    "h": 128
+  },
+  "bomber": {
+    "w": 104,
+    "h": 156
+  },
+  "boss": {
+    "w": 297,
+    "h": 280
+  },
+  "firebomb": {
+    "w": 28,
+    "h": 76
+  },
+  "acid": {
+    "w": 43,
+    "h": 52
+  },
+  "poof": {
+    "w": 182,
+    "h": 180
+  },
+  "airstrike_icon": {
+    "w": 63,
+    "h": 64
+  },
+  "logo": {
+    "w": 960,
+    "h": 263
+  },
+  "soldier_up_1": {
+    "w": 75,
+    "h": 112
+  },
+  "soldier_left_1": {
+    "w": 113,
+    "h": 112
+  },
+  "soldier_up_2": {
+    "w": 73,
+    "h": 112
+  },
+  "soldier_left_2": {
+    "w": 105,
+    "h": 112
+  },
+  "soldier_up_3": {
+    "w": 69,
+    "h": 112
+  },
+  "soldier_left_3": {
+    "w": 110,
+    "h": 112
+  },
+  "soldier_up_4": {
+    "w": 70,
+    "h": 112
+  },
+  "soldier_left_4": {
+    "w": 110,
+    "h": 112
+  },
+  "soldier_up_5": {
+    "w": 74,
+    "h": 112
+  },
+  "soldier_left_5": {
+    "w": 115,
+    "h": 112
+  },
+  "soldiers": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "ground": {
+    "w": 1024,
+    "h": 1024,
+    "roadLeft": 167,
+    "roadRight": 855
+  },
+  "water": {
+    "w": 318,
+    "h": 1024
+  },
+  "title": {
+    "w": 720,
+    "h": 1080
+  },
+  "music_game": {
+    "duration": 120.0
+  },
+  "music_title": {
+    "duration": 57.6
+  }
+}

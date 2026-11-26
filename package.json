@@ -1,0 +1,26 @@
+{
+  "name": "wordfront",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Wordfront: an arcade typing shooter",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "replay": "tsx tools/replay.ts",
+    "simulate": "tsx tools/simulate.ts",
+    "analyze": "uv run -q --no-project --with duckdb==2.0.1 python -I tools/analyze.py",
+    "assets": "python tools/process_assets.py"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.6",
+    "@types/node": "^22.20.7",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
+  }
+}
