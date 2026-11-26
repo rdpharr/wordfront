@@ -91,6 +91,7 @@ export type SimEvent = Base &
       }
     | { type: "release"; id: number; lettersLeft: number }
     | { type: "switch_hint"; id: number }
+    | { type: "jammed"; char: string }
     | { type: "hit"; id: number; final: boolean; x: number; y: number }
     | {
         type: "kill";

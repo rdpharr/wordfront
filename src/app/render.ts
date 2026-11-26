@@ -298,6 +298,7 @@ export class Renderer {
     const danger = new Set(sim.enemies.filter((e) => sim.incoming(e)).map((e) => e.id));
     for (const e of order) this.drawEnemy(e, f.alpha, f.time, danger.has(e.id), hc);
     this.drawSquad(p.x, p.y, sim.phase === "over");
+    if (sim.jamT > 0 && sim.phase === "wave") this.drawJam(p.x, p.y, sim.jamT / Math.max(1e-6, sim.cfg.jamSeconds), hc);
     for (const b of sim.bolts) this.drawBolt(lerp(b.px, b.x, f.alpha), lerp(b.py, b.y, f.alpha), b.px, b.py);
 
     this.updatePoofs(dt);
@@ -306,7 +307,7 @@ export class Renderer {
     if (!f.hideWords) {
       const lock = sim.lockTarget;
       for (const e of sim.enemies) if (!e.dying && e !== lock) this.drawLabel(e, f.alpha, false, f, danger.has(e.id));
-      if (lock) this.drawLabel(lock, f.alpha, true, f, danger.has(lock.id), this.switchHint);
+      if (lock) this.drawLabel(lock, f.alpha, true, f, danger.has(lock.id), this.switchHint, sim.jamT > 0);
     }
     c.restore();
 
@@ -581,7 +582,7 @@ export class Renderer {
 
   // ------------------------------------------------------------ text
 
-  private drawLabel(e: Enemy, alpha: number, locked: boolean, f: FrameInfo, danger = false, hint = 0): void {
+  private drawLabel(e: Enemy, alpha: number, locked: boolean, f: FrameInfo, danger = false, hint = 0, jammed = false): void {
     const c = this.ctx;
     const text = remaining(e);
     if (!text) return;
@@ -597,7 +598,9 @@ export class Renderer {
     const w = tw + padX * 2;
     const x = lerp(e.px, e.x, alpha);
     const y = lerp(e.py, e.y, alpha);
-    let lx = x - w / 2;
+    // a jam rattles the locked word sideways
+    const rattle = jammed && !f.settings.reducedMotion ? Math.sin(f.time * 70) * 3 : 0;
+    let lx = x - w / 2 + rattle;
     let ly = y + (LOOK[e.kind].h * depth(y)) / 2 - 2;
     lx = Math.max(4, Math.min(W - 4 - w, lx));
     ly = Math.max(62, Math.min(H - 4 - h, ly));
@@ -614,6 +617,33 @@ export class Renderer {
     c.textBaseline = "middle";
     c.fillText(text, lx + padX, ly + h / 2 + 1);
     if (hint > 0) this.drawSwitchHint(lx + w / 2, ly + h + 4, hint, hc);
+  }
+
+  /** "JAMMED" over the squad while a wrong letter has the rifles jammed; fades as it clears. */
+  private drawJam(x: number, y: number, left: number, hc: boolean): void {
+    const c = this.ctx;
+    const text = "JAMMED";
+    c.save();
+    c.globalAlpha = Math.min(1, 0.35 + left);
+    c.font = `900 16px ${FONT}`;
+    const w = c.measureText(text).width + 22;
+    const h = 26;
+    const top = y - 92;
+    c.fillStyle = hc ? "#000000" : "rgba(150,20,12,0.92)";
+    c.strokeStyle = hc ? "#ff4040" : "#2b1d12";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(x - w / 2, top, w, h, h / 2);
+    c.fill();
+    c.stroke();
+    // the bar under the text drains as the jam clears
+    c.fillStyle = "#ffc53a";
+    c.fillRect(x - w / 2 + 10, top + h - 6, (w - 20) * left, 3);
+    c.fillStyle = "#fff6e3";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(text, x, top + h / 2 - 1);
+    c.restore();
   }
 
   /** Tag under a locked word the player keeps missing: Backspace drops the target. */

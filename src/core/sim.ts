@@ -38,6 +38,8 @@ export class Sim {
   lockedMisses = 0;
   /** seconds left with no spawns after an airstrike (the strike, then emp.respawnDelay) */
   spawnHold = 0;
+  /** seconds the rifles stay jammed after a wrong letter; letters typed meanwhile are dropped */
+  jamT = 0;
   wave = 0;
   phase: Phase = "break";
   breakT = 0;
@@ -98,8 +100,14 @@ export class Sim {
     this.stepCount++;
     const dt = this.cfg.dt;
 
+    // a jam set in an earlier step runs down before this step's keys are read
+    if (this.jamT > 0) this.jamT = this.jamT - dt > 1e-9 ? this.jamT - dt : 0;
     for (let i = 0; i < inputs.length && this.phase !== "over"; i++) {
       const inp = inputs[i]!;
+      if (inp.kind === "char" && this.jamT > 0) {
+        this.emit({ type: "jammed", char: inp.ch });
+        continue;
+      }
       if (inp.kind === "char") {
         let look = "";
         for (let j = i + 1; j < inputs.length; j++) {
@@ -148,8 +156,11 @@ export class Sim {
     this.cullOffscreen();
     this.trackWaveStats();
 
+    // never end a wave mid-airstrike: the strike resets the wave when it finishes
+    const strikeResets = this.emp !== null && this.cfg.emp.resetWave;
     if (
       this.phase === "wave" &&
+      !strikeResets &&
       this.queue.length === 0 &&
       !this.enemies.some((e) => !e.dying)
     ) {
@@ -266,6 +277,7 @@ export class Sim {
 
   private missLetter(ch: string, expected: string | null, e: Enemy | null): void {
     this.scoring.miss(expected);
+    this.jamT = this.cfg.jamSeconds;
     if (e) e.missesOnWord++;
     this.emit({
       type: "key",
@@ -719,8 +731,9 @@ export class Sim {
    * What a letter would do if it arrived now, so the app can play the keystroke
    * sound at once instead of waiting for the next step. Display only: step() decides.
    */
-  predict(ch: string): "hit" | "miss" | "ignore" {
+  predict(ch: string): "hit" | "miss" | "jammed" | "ignore" {
     if (this.phase !== "wave") return "ignore";
+    if (this.jamT > 0) return "jammed";
     const lock = this.lockTarget;
     if (lock) {
       if (lock.word[lock.typed] === ch) return "hit";

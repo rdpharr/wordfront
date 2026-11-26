@@ -49,9 +49,13 @@
     "switchAfterMisses": 2,
     "_note": "After this many wrong letters in a row on a locked word, a \"Backspace: switch target\" hint shows until the next right letter, a release or the word dying. 0 turns it off."
   },
+  "accuracy": {
+    "jamSeconds": 0.3,
+    "_note": "A wrong letter (or one that matches no word) jams the rifles for this many seconds. Letters typed during a jam are dropped: they don't count as hits or misses and don't extend the jam, so mashing gains nothing. Backspace and Enter still work. 0 turns it off."
+  },
   "bolt": { "speed": 800 },
   "emp": {
-    "count": 3, "max": 3, "radius": 260, "duration": 1.0,
+    "count": 3, "max": 3, "radius": 400, "duration": 1.0,
     "refillEvery": 12,
     "_refillNote": "Typing this many words (Bullets don't count) earns an airstrike back, up to max. The count only runs while below max.",
     "resetWave": true,

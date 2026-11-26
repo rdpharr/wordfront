@@ -29,6 +29,16 @@ export function typeEach(sim: Sim, s: string): SimEvent[] {
   return out;
 }
 
+/** Like typeEach, but waits out any jam before each letter so wrong letters all land. */
+export function typeSpaced(sim: Sim, s: string): SimEvent[] {
+  const out: SimEvent[] = [];
+  for (const inp of chars(s)) {
+    while (sim.jamT > 0) out.push(...sim.step());
+    out.push(...sim.step([inp]));
+  }
+  return out;
+}
+
 export function stepN(sim: Sim, n: number): SimEvent[] {
   const out: SimEvent[] = [];
   for (let i = 0; i < n; i++) out.push(...sim.step());

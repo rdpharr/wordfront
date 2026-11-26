@@ -201,7 +201,8 @@ export class App {
       if (k.kind === "char" && this.sim) {
         const p = this.sim.predict(k.ch);
         if (p === "hit") this.audio.shot(this.sim.scoring.multiplier);
-        else if (p === "miss") this.audio.miss();
+        else if (p === "miss") this.audio.jam();
+        else if (p === "jammed") this.audio.jammedKey();
       }
       this.queue.push(k);
       return;

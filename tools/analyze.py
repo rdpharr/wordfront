@@ -226,12 +226,14 @@ def report(con: duckdb.DuckDBPyConnection) -> None:
         """
         select r.run_id, r.wave,
                count(*) filter (where e.type = 'switch_hint') as switch_hints,
-               count(*) filter (where e.type = 'release') as backspace_releases
+               count(*) filter (where e.type = 'release') as backspace_releases,
+               count(*) filter (where e.type = 'jammed') as keys_dropped_jammed
         from runs r left join ev e using (run_id)
         group by all order by r.run_id
         """,
         "switch_hints = times the 'Backspace: switch target' tag appeared after wrong letters in a row on a lock "
-        "(runs before the hint show none). A release = Backspace dropping a lock.",
+        "(runs before the hint show none). A release = Backspace dropping a lock. "
+        "keys_dropped_jammed = letters typed while the rifles were jammed by a wrong letter (mashing).",
     )
     show(
         con,

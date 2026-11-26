@@ -155,6 +155,18 @@ export class Audio {
     this.tone(140, 0.07, "square", 0.12, 90);
   }
 
+  /** Wrong letter: the rifles jam with a dry metallic click-clack. */
+  jam(): void {
+    this.burst(0.03, 0.35, 3200, 0.9);
+    this.tone(140, 0.07, "square", 0.12, 90);
+    setTimeout(() => this.burst(0.03, 0.25, 2400, 0.9), 90);
+  }
+
+  /** A letter dropped while jammed: a faint dead click. */
+  jammedKey(): void {
+    this.burst(0.02, 0.12, 2000, 0.9);
+  }
+
   kill(): void {
     this.burst(0.25, 0.4, 600, 0.7);
     this.tone(260, 0.22, "sawtooth", 0.06, 70);

@@ -38,6 +38,7 @@ export interface Tunables {
   warnSeconds: number;
   snapShot: boolean;
   switchHintAfter: number;
+  jamSeconds: number;
   missile: { straightFor: number; turnFor: number; turnRate: number };
   hit: { knockback: number; knockbackRandom: number; haltFor: number };
   boltSpeed: number;
@@ -112,6 +113,7 @@ export function resolveConfig(c: RawConfig = raw): Tunables {
     warnSeconds: c.warning.seconds,
     snapShot: c.warning.snapShot,
     switchHintAfter: c.hints.switchAfterMisses,
+    jamSeconds: c.accuracy.jamSeconds,
     boltSpeed: c.bolt.speed * k,
     emp: {
       count: c.emp.count,

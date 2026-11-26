@@ -3,7 +3,7 @@ import { Sim } from "../src/core/sim";
 import { rawConfig, resolveConfig } from "../src/core/config";
 import type { SimEvent } from "../src/core/types";
 import { composition } from "../src/core/waves";
-import { bank, cfg, chars, emptySim, newSim, runBot, stepN, typeEach } from "./helpers";
+import { bank, cfg, chars, emptySim, newSim, runBot, stepN, typeEach, typeSpaced } from "./helpers";
 
 const ofType = <T extends SimEvent["type"]>(evs: SimEvent[], t: T) =>
   evs.filter((e): e is Extract<SimEvent, { type: T }> => e.type === t);
@@ -142,6 +142,20 @@ describe("EMP", () => {
     const back = ofType(stepN(s, 60 * 8), "spawn").filter((e) => e.parent === null);
     expect(back).toHaveLength(total - 1);
     expect(back.map((e) => e.word)).not.toContain("cow");
+  });
+
+  it("can't finish a wave: destroying the last enemies still restarts it", () => {
+    const s = emptySim();
+    const full = composition(s.wave, cfg.waves);
+    const total = full.mine + full.destroyer + full.oppressor;
+    s.addEnemy("mine", 270, 700, "cow");
+    s.addEnemy("mine", 300, 650, "dog"); // the wave's last two enemies, both in reach
+    s.step([{ kind: "emp" }]);
+    const evs = stepN(s, 70);
+    expect(ofType(evs, "wave_end")).toHaveLength(0);
+    expect(s.phase).toBe("wave");
+    expect(ofType(evs, "airstrike")[0]).toMatchObject({ destroyed: 2, requeued: total, toGo: total });
+    expect(s.queue).toHaveLength(total);
   });
 
   it("with resetWave off, destroyed enemies are gone for good", () => {
@@ -284,23 +298,64 @@ describe("enemies", () => {
     const s = emptySim();
     s.addEnemy("mine", 100, 100, "dog");
     s.addEnemy("mine", 300, 100, "cat");
-    typeEach(s, "d");
-    const first = typeEach(s, "x".repeat(n - 1));
+    typeSpaced(s, "d");
+    const first = typeSpaced(s, "x".repeat(n - 1));
     expect(s.showSwitchHint).toBe(false);
     expect(ofType(first, "switch_hint")).toHaveLength(0);
-    const evs = typeEach(s, "x");
+    const evs = typeSpaced(s, "x");
     expect(s.showSwitchHint).toBe(true);
     expect(ofType(evs, "switch_hint")).toHaveLength(1);
-    expect(ofType(typeEach(s, "x"), "switch_hint")).toHaveLength(0); // once per stuck spell
-    typeEach(s, "o");
+    expect(ofType(typeSpaced(s, "x"), "switch_hint")).toHaveLength(0); // once per stuck spell
+    typeSpaced(s, "o");
     expect(s.showSwitchHint).toBe(false);
-    typeEach(s, "x".repeat(n));
+    typeSpaced(s, "x".repeat(n));
     expect(s.showSwitchHint).toBe(true);
     s.step([{ kind: "backspace" }]);
     expect(s.lockId).toBe(null);
     expect(s.showSwitchHint).toBe(false);
-    typeEach(s, "c"); // a new lock starts clean
+    typeSpaced(s, "c"); // a new lock starts clean
     expect(s.showSwitchHint).toBe(false);
+  });
+
+  it("a wrong letter jams the rifles: letters typed during the jam are dropped, not counted", () => {
+    const s = emptySim();
+    const mine = s.addEnemy("mine", 100, 100, "dog");
+    typeEach(s, "d");
+    // mash: one wrong letter, then a burst in the same and following steps
+    const evs = [...s.step([{ kind: "char", ch: "x" }, { kind: "char", ch: "o" }]), ...typeEach(s, "asdf")];
+    expect(s.scoring.errors).toBe(1);
+    expect(mine.typed).toBe(1); // the right letter typed during the jam was dropped too
+    expect(ofType(evs, "jammed").map((e) => e.char).join("")).toBe("oasdf");
+    expect(s.predict("o")).toBe("jammed");
+    // the jam lasts jamSeconds from the miss
+    const jamSteps = Math.round(cfg.jamSeconds * 60);
+    stepN(s, jamSteps - 4); // the 4 mashed steps above already counted down
+    expect(s.jamT).toBe(0);
+    typeEach(s, "og");
+    expect(mine.dying).toBe(true);
+  });
+
+  it("a jam runs exactly jamSeconds and doesn't block Backspace or an airstrike", () => {
+    const s = emptySim();
+    s.addEnemy("mine", 100, 100, "dog");
+    s.addEnemy("mine", 270, 700, "cow");
+    typeEach(s, "dx");
+    const jamSteps = Math.round(cfg.jamSeconds * 60);
+    stepN(s, jamSteps - 2);
+    expect(s.jamT).toBeGreaterThan(0);
+    s.step([{ kind: "backspace" }]);
+    expect(s.lockId).toBe(null);
+    const evs = s.step([{ kind: "emp" }]);
+    expect(ofType(evs, "emp_fire")).toHaveLength(1);
+    expect(s.jamT).toBe(0);
+  });
+
+  it("a letter that matches no word jams too", () => {
+    const s = emptySim();
+    s.addEnemy("mine", 100, 100, "dog");
+    typeEach(s, "q");
+    expect(s.jamT).toBeGreaterThan(0);
+    expect(ofType(typeEach(s, "d"), "jammed")).toHaveLength(1);
   });
 
   it("enemies that drift off screen are removed without scoring", () => {
