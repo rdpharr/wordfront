@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { defineConfig, type Plugin } from "vitest/config";
-import { appendLog, pruneLogs, readSave, writeSave } from "./dev/datastore.ts";
+import { appendLog, logEnds, pruneLogs, readSave, writeSave } from "./dev/datastore.ts";
 
 function body(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -37,6 +37,7 @@ function datastore(): Plugin {
               appendLog(url.searchParams.get("file") ?? "", await body(req));
               return send(204);
             }
+            if (url.pathname === "/log-ends" && req.method === "GET") return send(200, logEnds());
             if (url.pathname === "/prune" && req.method === "POST") {
               const n = pruneLogs(Number(url.searchParams.get("runs")), Number(url.searchParams.get("bytes")));
               return send(200, String(n));

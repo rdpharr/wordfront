@@ -39,6 +39,22 @@ export function appendLog(file: string, lines: string, dir = dataDir()): void {
   fs.appendFileSync(path.join(logs, file), lines, "utf8");
 }
 
+/**
+ * The first and last line of every run log, oldest first: the run_start and (for a
+ * finished run) the run_end, enough to rebuild run history without reading the rest.
+ */
+export function logEnds(dir = dataDir()): string {
+  const logs = path.join(dir, "logs");
+  if (!fs.existsSync(logs)) return "";
+  let out = "";
+  for (const f of fs.readdirSync(logs).filter((x) => SAFE_LOG.test(x)).sort()) {
+    const lines = fs.readFileSync(path.join(logs, f), "utf8").split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length > 0) out += lines[0] + "\n";
+    if (lines.length > 1) out += lines[lines.length - 1] + "\n";
+  }
+  return out;
+}
+
 /** Delete the oldest run logs beyond maxRuns files or maxBytes in total. */
 export function pruneLogs(maxRuns: number, maxBytes: number, dir = dataDir()): number {
   const logs = path.join(dir, "logs");

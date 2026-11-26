@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { historyHtml, series } from "../src/app/history";
-import { addRun, bests, newRecords, parseSave, type RunRecord } from "../src/app/storage";
+import { addRun, bests, mergeRuns, newRecords, parseSave, runsFromLogEnds, type RunRecord } from "../src/app/storage";
 
 const run = (day: number, score: number, accuracy: number, wpm: number): RunRecord => ({
   at: new Date(Date.UTC(2026, 10, day, 12)).toISOString(),
@@ -65,5 +65,60 @@ describe("run history", () => {
     expect(html).toContain("best <b>22.0</b>");
     expect(html).toContain("Best streak");
     expect(historyHtml([run(1, 100, 0.9, 20)]).match(/<svg/g)).toHaveLength(4); // a single run still draws
+  });
+});
+
+describe("importing runs from the gameplay logs", () => {
+  const start = (id: string, at: string) => JSON.stringify({ run_id: id, t: 0, type: "run_start", started_at: at });
+  const end = (id: string, t: number, score: number, reason = "death") =>
+    JSON.stringify({ run_id: id, t, type: "run_end", reason, score, wave: 9, accuracy: 0.9375, wpm: 23.456, longest_streak: 70 });
+
+  it("turns finished runs into history, timed at their end, skipping quits, empties and junk", () => {
+    const text = [
+      start("a", "2026-11-25T18:00:00.000Z"),
+      end("a", 300000, 480),
+      start("b", "2026-11-25T19:00:00.000Z"),
+      end("b", 60000, 120, "quit"),
+      start("c", "2026-11-25T20:00:00.000Z"), // still running: no run_end
+      "{not json",
+      start("d", "2026-11-25T21:00:00.000Z"),
+      end("d", 1000, 0),
+      end("zz", 5000, 999), // no matching start
+    ].join("\n");
+    expect(runsFromLogEnds(text)).toEqual([
+      { at: "2026-11-25T18:05:00.000Z", score: 480, wave: 9, accuracy: 0.9375, wpm: 23.5, longestStreak: 70 },
+    ]);
+    expect(runsFromLogEnds("")).toEqual([]);
+  });
+
+  it("merges without duplicates, giving an old date-only entry the log's time", () => {
+    const legacy: RunRecord = { at: "2026-11-25T12:00:00.000Z", score: 480, wave: 9, accuracy: 0.9375, wpm: 23.5, longestStreak: 70 };
+    const fromLog = { ...legacy, at: "2026-11-25T18:05:00.000Z" };
+    const other = run(28, 900, 0.95, 25);
+    const merged = mergeRuns([legacy, other], [fromLog, run(1, 50, 0.8, 15)]);
+    expect(merged.map((r) => r.score)).toEqual([50, 480, 900]);
+    expect(merged[1]!.at).toBe("2026-11-25T18:05:00.000Z");
+    expect(legacy.at).toBe("2026-11-25T12:00:00.000Z"); // inputs untouched
+  });
+
+  it("remembers that the logs were imported", () => {
+    expect(parseSave(JSON.stringify({ history: [], logsImported: true })).logsImported).toBe(true);
+    expect(parseSave(JSON.stringify({ history: [] })).logsImported).toBeUndefined();
+  });
+});
+
+describe("long histories", () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => run(1 + (i % 28), 100 + i, 0.9, 20));
+
+  it("charts every run, not just the latest few", () => {
+    expect(series(many(250), "score").values).toHaveLength(250);
+  });
+
+  it("drops plain-run dots on long histories but keeps record dots", () => {
+    const short = historyHtml(many(30));
+    expect(short).toContain('<circle class="run"');
+    const long = historyHtml(many(120));
+    expect(long).not.toContain('<circle class="run"');
+    expect(long).toContain('<circle class="rec"'); // every run here is a new score record
   });
 });

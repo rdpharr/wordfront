@@ -30,6 +30,8 @@ export interface SaveData {
   settings: Settings;
   /** finished runs, oldest first */
   history: RunRecord[];
+  /** set once runs from the gameplay logs have been folded into history */
+  logsImported?: boolean;
 }
 
 /** The measures the history charts track; higher is better for each. */
@@ -95,6 +97,7 @@ export function parseSave(raw: string | null): SaveData {
         version: 1,
         settings: { ...DEFAULT_SETTINGS, ...(d.settings ?? {}) },
         history: parseHistory(d),
+        ...(d.logsImported === true ? { logsImported: true } : {}),
       };
     }
   } catch {
@@ -139,6 +142,69 @@ export class Saver {
       this.writing = null;
     }
   }
+}
+
+/**
+ * Finished runs (deaths, not quits) from run logs' first and last lines: each
+ * run_start gives the start time, its run_end the results. Lines that aren't
+ * JSON or don't pair up are skipped.
+ */
+export function runsFromLogEnds(text: string): RunRecord[] {
+  const starts = new Map<string, number>();
+  const runs: RunRecord[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let d: Record<string, unknown>;
+    try {
+      d = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const id = String(d.run_id ?? "");
+    if (d.type === "run_start" && typeof d.started_at === "string") {
+      const t = Date.parse(d.started_at);
+      if (!Number.isNaN(t)) starts.set(id, t);
+    } else if (d.type === "run_end" && d.reason === "death" && starts.has(id)) {
+      const run = cleanRun({
+        at: new Date(starts.get(id)! + num(d.t)).toISOString(),
+        score: num(d.score),
+        wave: num(d.wave),
+        accuracy: num(d.accuracy),
+        wpm: Math.round(num(d.wpm) * 10) / 10,
+        longestStreak: num(d.longest_streak),
+      });
+      if (run && run.score > 0) runs.push(run);
+    }
+  }
+  return runs;
+}
+
+/** Same run seen twice (in the save and in a log): same score, wave and accuracy. */
+const runKey = (r: RunRecord) => `${r.score}|${r.wave}|${r.accuracy.toFixed(3)}`;
+
+/**
+ * History plus any imported runs it doesn't already have, oldest first. A run in
+ * both takes the log's time (an old top-10 entry only knew its date).
+ */
+export function mergeRuns(history: readonly RunRecord[], extra: readonly RunRecord[]): RunRecord[] {
+  const byKey = new Map<string, RunRecord>();
+  const out = history.map((r) => {
+    const copy = { ...r };
+    byKey.set(runKey(copy), copy);
+    return copy;
+  });
+  for (const r of extra) {
+    const have = byKey.get(runKey(r));
+    if (have) {
+      have.at = r.at;
+      continue;
+    }
+    const copy = { ...r };
+    byKey.set(runKey(copy), copy);
+    out.push(copy);
+  }
+  out.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  return out.slice(-MAX_HISTORY);
 }
 
 /** Append a finished run, keeping the newest MAX_HISTORY. */

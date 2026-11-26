@@ -13,6 +13,8 @@ export interface Platform {
   /** best effort, for when the page is closing */
   appendLogNow(file: string, lines: string): void;
   pruneLogs(maxRuns: number, maxBytes: number): Promise<void>;
+  /** First and last line of every run log (JSONL), oldest first; "" where there are no logs. */
+  logEnds(): Promise<string>;
   quit(): void;
   /** Desktop only: run `finish` before the window closes (the page is told first). */
   onCloseRequested(finish: () => Promise<void>): void;
@@ -36,6 +38,7 @@ function desktop(tauri: TauriGlobal): Platform {
     appendLog: async (file, lines) => void (await invoke("append_log", { file, lines })),
     appendLogNow: (file, lines) => void invoke("append_log", { file, lines }),
     pruneLogs: async (maxRuns, maxBytes) => void (await invoke("prune_logs", { maxRuns, maxBytes })),
+    logEnds: async () => (await invoke("log_ends")) as string,
     quit: () => void invoke("quit"),
     onCloseRequested: (finish) => {
       void tauri.event.listen("wf-close-requested", () => {
@@ -64,6 +67,7 @@ function dev(): Platform {
       void ok(await fetch(`/__wf/log?file=${encodeURIComponent(file)}`, { method: "POST", body: lines })),
     appendLogNow: (file, lines) => void navigator.sendBeacon(`/__wf/log?file=${encodeURIComponent(file)}`, lines),
     pruneLogs: async (runs, bytes) => void ok(await fetch(`/__wf/prune?runs=${runs}&bytes=${bytes}`, { method: "POST" })),
+    logEnds: async () => (await ok(await fetch("/__wf/log-ends")).text()),
     quit: () => window.close(),
     onCloseRequested: () => {},
   };
@@ -77,6 +81,7 @@ function browser(): Platform {
     appendLog: async () => {},
     appendLogNow: () => {},
     pruneLogs: async () => {},
+    logEnds: async () => "",
     quit: () => window.close(),
     onCloseRequested: () => {},
   };

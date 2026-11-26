@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { appendLog, pruneLogs, readSave, writeSave } from "../dev/datastore";
+import { appendLog, logEnds, pruneLogs, readSave, writeSave } from "../dev/datastore";
 import { DEFAULT_SETTINGS, parseSave, Saver, type SaveData } from "../src/app/storage";
 
 let dir: string;
@@ -72,5 +72,18 @@ describe("log files", () => {
     ]);
     expect(pruneLogs(10, 250, dir)).toBe(1); // newest two fit in 250 bytes
     expect(fs.readdirSync(path.join(dir, "logs")).length).toBe(2);
+  });
+});
+
+describe("log ends", () => {
+  it("returns the first and last line of each run log, oldest first", () => {
+    appendLog("run-20261125-101500-ab12.jsonl", "s2\nx\ne2\n", dir);
+    appendLog("run-20261124-101500.jsonl", "s1\nx\ny\ne1\n", dir);
+    appendLog("run-20261126-101500.jsonl", "only\n", dir);
+    expect(logEnds(dir)).toBe("s1\ne1\ns2\ne2\nonly\n");
+  });
+
+  it("is empty with no logs folder", () => {
+    expect(logEnds(dir)).toBe("");
   });
 });

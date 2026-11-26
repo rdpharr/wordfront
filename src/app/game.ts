@@ -11,7 +11,7 @@ import { keyToInput } from "./keys";
 import { detectPlatform } from "./platform";
 import { Renderer } from "./render";
 import { historyHtml } from "./history";
-import { addRun, newRecords, parseSave, Saver, type RecordKey, type RunRecord, type SaveData } from "./storage";
+import { addRun, mergeRuns, newRecords, parseSave, runsFromLogEnds, Saver, type RecordKey, type RunRecord, type SaveData } from "./storage";
 
 type State = "title" | "options" | "playing" | "paused" | "dying" | "over";
 
@@ -62,6 +62,7 @@ export class App {
     }
     try {
       this.data = parseSave(await this.platform.loadSave());
+      await this.importLoggedRuns();
       void this.saver.save(this.data); // creates save.json on first run
     } catch (err) {
       console.error("couldn't read the save file", err);
@@ -273,6 +274,22 @@ export class App {
     this.acc = 0;
     this.audio.duck(false);
     this.screen(null);
+  }
+
+  /**
+   * Once per save: fold every finished run in the gameplay logs into the history,
+   * so runs from before the history existed (or never saved to it) still chart.
+   * If the logs can't be read, it tries again next launch.
+   */
+  private async importLoggedRuns(): Promise<void> {
+    if (this.data.logsImported) return;
+    try {
+      const runs = runsFromLogEnds(await this.platform.logEnds());
+      this.data.history = mergeRuns(this.data.history, runs);
+      this.data.logsImported = true;
+    } catch (err) {
+      console.error("couldn't read the run logs", err);
+    }
   }
 
   private showTitle(): void {

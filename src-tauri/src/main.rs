@@ -98,6 +98,36 @@ fn prune_logs(max_runs: usize, max_bytes: u64) -> Result<usize, String> {
     Ok(removed)
 }
 
+/// The first and last line of every run log, oldest first: the run_start and (for a
+/// finished run) the run_end, enough to rebuild run history.
+#[tauri::command]
+fn log_ends() -> Result<String, String> {
+    let logs = data_dir()?.join("logs");
+    if !logs.exists() {
+        return Ok(String::new());
+    }
+    let mut names: Vec<String> = fs::read_dir(&logs)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok()?.file_name().into_string().ok())
+        .filter(|n| safe_log_name(n))
+        .collect();
+    names.sort();
+    let mut out = String::new();
+    for name in names {
+        let Ok(text) = fs::read_to_string(logs.join(&name)) else { continue };
+        let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+        if let Some(first) = lines.first() {
+            out.push_str(first);
+            out.push('\n');
+            if lines.len() > 1 {
+                out.push_str(lines[lines.len() - 1]);
+                out.push('\n');
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[tauri::command]
 fn quit(app: AppHandle) {
     app.exit(0);
@@ -105,7 +135,7 @@ fn quit(app: AppHandle) {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_save, write_save, append_log, prune_logs, quit])
+        .invoke_handler(tauri::generate_handler![load_save, write_save, append_log, prune_logs, log_ends, quit])
         .on_window_event(|window, event| {
             // Let the game finish its run log before closing; it calls `quit` when done.
             // If it doesn't answer (e.g. the page is broken), close anyway after a moment.

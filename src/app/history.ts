@@ -1,7 +1,14 @@
 import { RECORD_KEYS, type RecordKey, type RunRecord } from "./storage";
 
-/** How many of the latest runs the charts show. Records still count every run. */
-export const CHART_RUNS = 40;
+/**
+ * How many of the latest runs the charts show: all of them in practice (the save
+ * keeps up to 1000), so the whole arc of improvement is visible. Records always
+ * count every run.
+ */
+export const CHART_RUNS = 1000;
+
+/** Past this many runs, plain runs lose their dots so the line stays readable; records keep theirs. */
+const DOTS_UP_TO = 60;
 
 const LABEL: Record<RecordKey, string> = { score: "Score", accuracy: "Accuracy", wpm: "WPM", longestStreak: "Best streak" };
 const FMT: Record<RecordKey, (v: number) => string> = {
@@ -67,11 +74,14 @@ function chart(s: Series, first: string, last: string): string {
   const x = (i: number) => (v.length === 1 ? W / 2 : PL + ((W - PL - PR) * i) / (v.length - 1));
   const y = (val: number) => PT + (H - PT - PB) * (1 - (val - lo) / (hi - lo));
   const path = (vals: number[]) => vals.map((val, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(val).toFixed(1)}`).join(" ");
+  const runDots = v.length <= DOTS_UP_TO;
   const dots = v
     .map((val, i) =>
       s.record[i]
         ? `<circle class="rec" cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="5"/>`
-        : `<circle class="run" cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="3"/>`,
+        : runDots
+          ? `<circle class="run" cx="${x(i).toFixed(1)}" cy="${y(val).toFixed(1)}" r="3"/>`
+          : "",
     )
     .join("");
   const topLabel =
