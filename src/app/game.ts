@@ -10,7 +10,8 @@ import { Audio } from "./audio";
 import { keyToInput } from "./keys";
 import { detectPlatform } from "./platform";
 import { Renderer } from "./render";
-import { bestScore, insertScore, parseSave, qualifies, Saver, type HighScore, type SaveData } from "./storage";
+import { historyHtml } from "./history";
+import { addRun, newRecords, parseSave, Saver, type RecordKey, type RunRecord, type SaveData } from "./storage";
 
 type State = "title" | "options" | "playing" | "paused" | "dying" | "over";
 
@@ -25,6 +26,7 @@ const RUN_INFO = {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+const RECORD_NAME: Record<RecordKey, string> = { score: "score", accuracy: "accuracy", wpm: "speed", longestStreak: "streak" };
 
 export class App {
   private platform = detectPlatform();
@@ -280,22 +282,15 @@ export class App {
     this.sim = null;
     this.audio.duck(false);
     this.audio.music("title");
-    const rows = this.data.scores
-      .map(
-        (s, i) =>
-          `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="num">${s.score}</td><td class="num">${s.wave}</td><td class="num">${pct(s.accuracy)}</td></tr>`,
-      )
-      .join("");
     this.screen(
       `<h1><img class="logo" src="${import.meta.env.BASE_URL}assets/logo.webp" alt="Wordfront"></h1>
        <button data-act="start">Start</button>
        <button data-act="options" class="secondary">Options</button>
        <button data-act="exit" class="secondary">Quit</button>
-       <h3>High scores</h3>
+       <h3>Your runs</h3>
        ${
-         rows
-           ? `<table><tr><th>#</th><th>Name</th><th class="num">Score</th><th class="num">Wave</th><th class="num">Acc.</th></tr>${rows}</table>`
-           : `<p class="muted">No scores yet. Type the words to stop them reaching the barricade.</p>`
+         historyHtml(this.data.history) ||
+         `<p class="muted">No runs yet. Type the words to stop them reaching the barricade.</p>`
        }`,
     );
   }
@@ -339,66 +334,45 @@ export class App {
     if (!sim) return this.showTitle();
     this.state = "over";
     const sc = sim.scoring;
-    const best = bestScore(this.data.scores);
-    const pb = sc.score > best && sc.score > 0;
     const missed = sc.topMissed(3);
-    const entry: HighScore = {
-      name: "",
+    const run: RunRecord = {
+      at: new Date().toISOString(),
       score: sc.score,
       wave: sim.wave,
       accuracy: sc.accuracy,
       wpm: Math.round(sim.wpm * 10) / 10,
       longestStreak: sc.longestStreak,
-      date: new Date().toISOString().slice(0, 10),
     };
-    const top10 = qualifies(this.data.scores, sc.score);
+    const records = newRecords(this.data.history, run);
+    // a run where nothing was typed (100% "accuracy" on no keys) would only skew the charts
+    if (sc.correct > 0) {
+      this.data.history = addRun(this.data.history, run);
+      void this.saver.save(this.data);
+    }
+    const rec = (k: RecordKey) => (records.includes(k) ? ` class="me"` : "");
     this.screen(
       `<h2>Overrun!</h2>
-       ${pb ? `<div class="badge">New personal best</div>` : ""}
+       ${records.length ? `<div class="badge">New record: ${records.map((k) => RECORD_NAME[k]).join(", ")}</div>` : ""}
        <table>
-         <tr><td>Final score</td><td class="num">${sc.score}</td></tr>
+         <tr${rec("score")}><td>Final score</td><td class="num">${sc.score}</td></tr>
          <tr><td>Wave reached</td><td class="num">${sim.wave}</td></tr>
-         <tr><td>Accuracy</td><td class="num">${pct(sc.accuracy)}</td></tr>
-         <tr><td>Longest streak</td><td class="num">${sc.longestStreak}</td></tr>
-         <tr><td>Typing speed</td><td class="num">${entry.wpm.toFixed(1)} WPM</td></tr>
+         <tr${rec("accuracy")}><td>Accuracy</td><td class="num">${pct(sc.accuracy)}</td></tr>
+         <tr${rec("longestStreak")}><td>Longest streak</td><td class="num">${sc.longestStreak}</td></tr>
+         <tr${rec("wpm")}><td>Typing speed</td><td class="num">${run.wpm.toFixed(1)} WPM</td></tr>
          <tr><td>Most-missed letters</td><td class="num">${
            missed.length ? missed.map((m) => `${m.letter.toUpperCase()} ×${m.count}`).join(", ") : "none"
          }</td></tr>
        </table>
-       ${
-         top10
-           ? `<h3>Top-10 score! Enter your name</h3>
-              <input type="text" maxlength="12" id="name" autocomplete="off" spellcheck="false">
-              <button data-act="saveName">Save</button>`
-           : `<button data-act="title">Back to title</button>`
-       }`,
+       <button data-act="title">Back to title</button>`,
     );
-    // Hold input briefly so letters (or Enter) typed at the moment of death don't
-    // land in the name box or skip the stats.
+    // Hold input briefly so Enter typed at the moment of death doesn't skip the stats.
     this.ui.inert = true;
     (document.activeElement as HTMLElement | null)?.blur?.();
     setTimeout(() => {
       if (this.state !== "over") return;
       this.ui.inert = false;
-      this.ui.querySelector<HTMLElement>("input#name, button")?.focus();
+      this.ui.querySelector<HTMLElement>("button")?.focus();
     }, 700);
-    const name = this.ui.querySelector<HTMLInputElement>("#name");
-    if (name) {
-      name.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          this.saveScore(entry, name.value);
-        }
-      });
-      this.ui.querySelector("[data-act=saveName]")!.addEventListener("click", () => this.saveScore(entry, name.value));
-    }
-  }
-
-  private saveScore(entry: HighScore, name: string): void {
-    entry.name = name.trim().slice(0, 12) || "Anonymous";
-    this.data.scores = insertScore(this.data.scores, entry).scores;
-    void this.saver.save(this.data);
-    this.showTitle();
   }
 
   // ------------------------------------------------------------- dom
@@ -413,7 +387,7 @@ export class App {
     for (const b of this.ui.querySelectorAll<HTMLButtonElement>("button[data-act]")) {
       b.addEventListener("click", () => this.act(b.dataset.act!));
     }
-    const first = this.ui.querySelector<HTMLElement>("input#name, button");
+    const first = this.ui.querySelector<HTMLElement>("button");
     first?.focus();
   }
 

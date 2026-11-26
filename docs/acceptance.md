@@ -13,7 +13,7 @@ Build: `src-tauri/target/release/wordfront.exe` (6.8 MB, portable, uses the WebV
 | 7 | Esc and loss of focus both pause; resuming restores exact state | Browser: Esc and window blur both open the pause menu; the game state is identical before and after 1.5 s paused; Resume continues from the same step. | Pass |
 | 8 | Game-over stats match a hand count on a scripted test run | Unit test recounts score, correct, errors and longest streak from the keystroke log; run_end matches the game's stats. | Pass |
 | 9 | Only lowercase a–z words ever appear; Shift and Caps Lock never cause a miss | Word list test (4,810 words, a–z only); keyboard test (uppercase maps to lowercase). | Pass |
-| 10 | High scores and settings survive closing and reopening the app | Desktop app loaded an existing save with a marker score and settings, kept them, and filled in missing defaults on rewrite. | Pass |
+| 10 | Run history and settings survive closing and reopening the app | Desktop app loaded an existing save with a marker score and settings, kept them, and filled in missing defaults on rewrite. | Pass |
 | 11 | Holds 60 fps with 30 enemies and full particle effects on this PC | Browser (Chromium, same engine as WebView2) at 1080×1920: 240 consecutive frames at 16.7 ms (worst 16.8 ms) with 30 enemies, 271 particles, poofs, an airstrike ring and labels; renderer CPU time 0.4 ms per frame. | Pass |
 
 Also checked: replaying a logged run's seed and keystrokes reproduces the same score and wave (unit tests and a real browser run); closing the desktop window mid-run finishes the run's log before exiting (window closed cleanly in 106 ms).

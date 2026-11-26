@@ -1,5 +1,5 @@
 /**
- * Settings and high scores, kept in save.json in the app data folder (see
+ * Settings and run history, kept in save.json in the app data folder (see
  * platform.ts for where that is in each build).
  */
 
@@ -14,21 +14,27 @@ export interface Settings {
   logging: boolean;
 }
 
-export interface HighScore {
-  name: string;
+/** One finished run, as shown on the title screen's history charts. */
+export interface RunRecord {
+  /** ISO timestamp the run ended */
+  at: string;
   score: number;
   wave: number;
   accuracy: number;
   wpm: number;
   longestStreak: number;
-  date: string;
 }
 
 export interface SaveData {
   version: 1;
   settings: Settings;
-  scores: HighScore[];
+  /** finished runs, oldest first */
+  history: RunRecord[];
 }
+
+/** The measures the history charts track; higher is better for each. */
+export const RECORD_KEYS = ["score", "accuracy", "wpm", "longestStreak"] as const;
+export type RecordKey = (typeof RECORD_KEYS)[number];
 
 export const DEFAULT_SETTINGS: Settings = {
   musicVolume: 0.6,
@@ -41,23 +47,60 @@ export const DEFAULT_SETTINGS: Settings = {
   logging: true,
 };
 
-const MAX_SCORES = 10;
+const MAX_HISTORY = 1000;
+
+/** Old saves kept a top-10 list; carry those runs over as history (dated at noon). */
+interface LegacyScore {
+  score: number;
+  wave: number;
+  accuracy: number;
+  wpm: number;
+  longestStreak: number;
+  date: string;
+}
+
+const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+function cleanRun(r: Partial<RunRecord>): RunRecord | null {
+  if (typeof r.at !== "string" || Number.isNaN(Date.parse(r.at))) return null;
+  return {
+    at: r.at,
+    score: num(r.score),
+    wave: num(r.wave),
+    accuracy: num(r.accuracy),
+    wpm: num(r.wpm),
+    longestStreak: num(r.longestStreak),
+  };
+}
+
+function parseHistory(d: { history?: unknown; scores?: unknown }): RunRecord[] {
+  let runs: RunRecord[];
+  if (Array.isArray(d.history)) {
+    runs = d.history.map((r) => cleanRun(r as Partial<RunRecord>)).filter((r): r is RunRecord => r !== null);
+  } else if (Array.isArray(d.scores)) {
+    runs = (d.scores as Partial<LegacyScore>[])
+      .map((s) => cleanRun({ ...s, at: `${s.date}T12:00:00.000Z` }))
+      .filter((r): r is RunRecord => r !== null);
+  } else runs = [];
+  runs.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  return runs.slice(-MAX_HISTORY);
+}
 
 /** Parse save.json (or nothing), filling in anything missing; a corrupt file starts fresh. */
 export function parseSave(raw: string | null): SaveData {
   try {
     if (raw) {
-      const d = JSON.parse(raw) as Partial<SaveData>;
+      const d = JSON.parse(raw) as Partial<SaveData> & { scores?: unknown };
       return {
         version: 1,
         settings: { ...DEFAULT_SETTINGS, ...(d.settings ?? {}) },
-        scores: Array.isArray(d.scores) ? d.scores.slice(0, MAX_SCORES) : [],
+        history: parseHistory(d),
       };
     }
   } catch {
     /* corrupt save: start fresh */
   }
-  return { version: 1, settings: { ...DEFAULT_SETTINGS }, scores: [] };
+  return { version: 1, settings: { ...DEFAULT_SETTINGS }, history: [] };
 }
 
 /**
@@ -98,18 +141,24 @@ export class Saver {
   }
 }
 
-/** Would this score make the top 10? */
-export function qualifies(scores: readonly HighScore[], score: number): boolean {
-  if (score <= 0) return false;
-  return scores.length < MAX_SCORES || score > scores[scores.length - 1]!.score;
+/** Append a finished run, keeping the newest MAX_HISTORY. */
+export function addRun(history: readonly RunRecord[], run: RunRecord): RunRecord[] {
+  return [...history, run].slice(-MAX_HISTORY);
 }
 
-/** Insert a score; returns the new list and the entry's index (or -1). */
-export function insertScore(scores: readonly HighScore[], hs: HighScore): { scores: HighScore[]; index: number } {
-  const list = [...scores, hs].sort((a, b) => b.score - a.score).slice(0, MAX_SCORES);
-  return { scores: list, index: list.indexOf(hs) };
+/** Best value of each measure so far (0 with no runs). */
+export function bests(history: readonly RunRecord[]): Record<RecordKey, number> {
+  const b = { score: 0, accuracy: 0, wpm: 0, longestStreak: 0 };
+  for (const r of history) for (const k of RECORD_KEYS) b[k] = Math.max(b[k], r[k]);
+  return b;
 }
 
-export function bestScore(scores: readonly HighScore[]): number {
-  return scores.reduce((m, s) => Math.max(m, s.score), 0);
+/**
+ * Measures this run beats every earlier run on. A first run sets no records (there
+ * is nothing to beat), and a zero score never counts.
+ */
+export function newRecords(history: readonly RunRecord[], run: RunRecord): RecordKey[] {
+  if (history.length === 0 || run.score <= 0) return [];
+  const b = bests(history);
+  return RECORD_KEYS.filter((k) => run[k] > b[k]);
 }

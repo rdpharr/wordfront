@@ -188,13 +188,108 @@ input[type="checkbox"] {
   height: 1.2em;
 }
 
-input[type="text"] {
-  width: 100%;
-  font: inherit;
-  font-size: 1.3em;
+/* run history on the title screen */
+.history {
+  text-align: left;
+  font-size: 0.8em;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-name {
   font-weight: 800;
-  padding: 0.3em 0.5em;
-  border-radius: calc(var(--u) * 10);
-  border: calc(var(--u) * 3) solid var(--ink);
-  text-align: center;
+  opacity: 0.8;
+}
+
+.history-vals b {
+  color: #ffc53a;
+  font-weight: 900;
+}
+
+.history-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.history-chart .axis {
+  stroke: rgba(255, 246, 227, 0.25);
+  stroke-width: 1;
+}
+
+.history-chart .line {
+  fill: none;
+  stroke: var(--cream);
+  stroke-opacity: 0.85;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.history-chart .best {
+  fill: none;
+  stroke: #ffc53a;
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.history-chart .run {
+  fill: var(--cream);
+}
+
+.history-chart .rec {
+  fill: #ffc53a;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.history-chart text {
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.history-chart .top {
+  fill: #ffc53a;
+  font-weight: 900;
+}
+
+.history-chart .date {
+  fill: var(--cream);
+  opacity: 0.6;
+}
+
+.history-key {
+  display: flex;
+  justify-content: center;
+  gap: 1.2em;
+  margin-top: 0.4em;
+  opacity: 0.8;
+}
+
+.history-key i {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 0.35em;
+  border-radius: 50%;
+  vertical-align: -0.05em;
+}
+
+.history-key i.rec {
+  background: #ffc53a;
+  box-shadow: 0 0 0 calc(var(--u) * 1.5) var(--ink);
+}
+
+.history-key i.run {
+  background: var(--cream);
+  width: 0.5em;
+  height: 0.5em;
 }

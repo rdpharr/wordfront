@@ -30,7 +30,7 @@ describe("save file", () => {
   it("fills in missing settings and survives a corrupt file", () => {
     const d = parseSave(JSON.stringify({ settings: { musicVolume: 0.2 }, scores: [] }));
     expect(d.settings).toEqual({ ...DEFAULT_SETTINGS, musicVolume: 0.2 });
-    expect(parseSave("{garbage").scores).toEqual([]);
+    expect(parseSave("{garbage").history).toEqual([]);
     expect(parseSave(null).settings).toEqual(DEFAULT_SETTINGS);
   });
 
