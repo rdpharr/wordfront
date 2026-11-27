@@ -97,8 +97,16 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 
 ## Phase 5: Test and release
 
-- Play the real built packages on Windows, macOS and Linux (a VM or a friend's machine
-  for the ones you don't have), and the Pages build in Chrome, Firefox and Safari.
-- Try a non-US keyboard layout (AZERTY, one with dead keys).
-- Release v0.9.0, then v0.9.1, to prove the updater works end to end.
-- Tag v1.0.0.
+- [x] Release v0.9.0, then v0.9.1, to prove the updater works end to end. Done 2026-11-27 on
+      Windows: 0.9.0 installed per-user without admin rights or a SmartScreen prompt, showed
+      "Version 0.9.1 is out", and "Install it" updated and restarted it with the save intact.
+- [x] Windows: the installed build plays, pauses, goes fullscreen (F11), shows the right
+      version in About, and saves its window size on close.
+- [x] Web version in Chromium: loads from Pages, shows "0.9.x · web" in About.
+- [ ] macOS (Apple Silicon and Intel): install the `.dmg`, get past Gatekeeper with "Open
+      Anyway", play, and update from one release to the next.
+- [ ] Linux: the AppImage (which updates itself) and the `.deb` (which falls back to the
+      download page if it can't get admin rights).
+- [ ] Web version in Firefox and Safari.
+- [ ] A non-US keyboard layout (AZERTY, one with dead keys).
+- [ ] Tag v1.0.0 once the boxes above are ticked.
