@@ -11,9 +11,25 @@ import { keyToInput } from "./keys";
 import { detectPlatform } from "./platform";
 import { Renderer } from "./render";
 import { historyHtml } from "./history";
-import { addRun, mergeRuns, newRecords, parseSave, runsFromLogEnds, Saver, type RecordKey, type RunRecord, type SaveData } from "./storage";
+import { bugReportUrl, checkForUpdate, RELEASES, REPO, TIP_JAR, type Update } from "./links";
+import { aboutHtml, helpHtml, resetConfirmHtml } from "./screens";
+import {
+  addRun,
+  mergeRuns,
+  newRecords,
+  parseSave,
+  resetHistory,
+  runsFromLogEnds,
+  Saver,
+  type RecordKey,
+  type RunRecord,
+  type SaveData,
+} from "./storage";
 
-type State = "title" | "options" | "playing" | "paused" | "dying" | "over";
+/** Menus that open over the title, the pause menu or the game-over screen. */
+type Menu = "options" | "help" | "about" | "reset";
+type State = "title" | "playing" | "paused" | "dying" | "over" | Menu;
+const isMenu = (s: State): s is Menu => s === "options" || s === "help" || s === "about" || s === "reset";
 
 const cfg = resolveConfig();
 const bank = new WordBank(WORDS);
@@ -41,7 +57,14 @@ export class App {
   private acc = 0;
   private last = 0;
   private dyingT = 0;
-  private optionsFrom: State = "title";
+  /** the screen a menu returns to */
+  private returnTo: "title" | "paused" | "over" = "title";
+  /** the last game-over screen, to come back to from How to play */
+  private overHtml = "";
+  private update: Update | null = null;
+  private updateDismissed = false;
+  /** false if save.json couldn't be read at launch: then nothing is saved just for opening How to play */
+  private saveLoaded = false;
 
   constructor(
     private stage: HTMLElement,
@@ -62,6 +85,7 @@ export class App {
     }
     try {
       this.data = parseSave(await this.platform.loadSave());
+      this.saveLoaded = true;
       await this.importLoggedRuns();
       void this.saver.save(this.data); // creates save.json on first run
     } catch (err) {
@@ -90,6 +114,8 @@ export class App {
     });
     this.layout();
     this.showTitle();
+    if (!this.data.helpSeen) this.openHelp(); // first launch: how to play, then the title
+    this.checkUpdates();
     requestAnimationFrame((t) => {
       this.last = t;
       this.frame(t);
@@ -139,9 +165,11 @@ export class App {
       if (this.dyingT <= 0) this.showGameOver();
     }
 
-    const paused = this.state === "paused" || (this.state === "options" && this.optionsFrom === "paused");
+    // a menu shows whatever it was opened over
+    const view = isMenu(this.state) ? this.returnTo : this.state;
+    const paused = view === "paused";
     if (this.renderer) {
-      if (!sim || this.state === "title" || (this.state === "options" && this.optionsFrom === "title")) {
+      if (!sim || view === "title") {
         this.renderer.drawTitle();
       } else {
         this.renderer.draw(sim, {
@@ -192,6 +220,11 @@ export class App {
   // ------------------------------------------------------------- input
 
   private onKey(e: KeyboardEvent): void {
+    if (e.key === "F11") {
+      e.preventDefault();
+      if (!e.repeat) this.platform.toggleFullscreen();
+      return;
+    }
     if (this.state === "playing") {
       const k = keyToInput(e);
       if (e.key === " " || e.key === "Backspace" || e.key === "Tab" || e.key === "Enter") e.preventDefault();
@@ -221,7 +254,7 @@ export class App {
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (this.state === "paused") this.resume("esc");
-      else if (this.state === "options") this.closeOptions();
+      else if (isMenu(this.state)) this.back();
     }
   }
 
@@ -263,6 +296,7 @@ export class App {
     this.screen(
       `<h2>Paused</h2>
        <button data-act="resume">Resume</button>
+       <button data-act="help" class="secondary">How to play</button>
        <button data-act="options" class="secondary">Options</button>
        <button data-act="quit" class="secondary">Quit to title</button>`,
     );
@@ -302,8 +336,11 @@ export class App {
     this.screen(
       `<h1><img class="logo" src="${import.meta.env.BASE_URL}assets/logo.webp" alt="Wordfront"></h1>
        <button data-act="start">Start</button>
+       <button data-act="help" class="secondary">How to play</button>
        <button data-act="options" class="secondary">Options</button>
-       <button data-act="exit" class="secondary">Quit</button>
+       <button data-act="about" class="secondary">About</button>
+       ${this.platform.kind === "browser" ? "" : `<button data-act="exit" class="secondary">Quit</button>`}
+       ${this.updateBanner()}
        <h3>Your runs</h3>
        ${
          historyHtml(this.data.history) ||
@@ -312,13 +349,13 @@ export class App {
     );
   }
 
-  private openOptions(): void {
-    this.optionsFrom = this.state === "paused" ? "paused" : "title";
-    this.state = "options";
+  private openOptions(note = ""): void {
     const s = this.data.settings;
     const check = (k: keyof typeof s, label: string) =>
       `<label class="row">${label}<input type="checkbox" data-set="${k}" ${s[k] ? "checked" : ""}></label>`;
-    this.screen(
+    const local = this.platform.kind !== "browser"; // logs and the update check need the desktop app
+    this.openMenu(
+      "options",
       `<h2>Options</h2>
        <label class="row">Music volume<input type="range" min="0" max="1" step="0.05" data-set="musicVolume" value="${s.musicVolume}"></label>
        <label class="row">Sound volume<input type="range" min="0" max="1" step="0.05" data-set="sfxVolume" value="${s.sfxVolume}"></label>
@@ -327,7 +364,10 @@ export class App {
        ${check("highContrast", "High-contrast colours")}
        ${check("reducedMotion", "Reduced motion (no shake or flash)")}
        ${check("screenShake", "Screen shake")}
-       ${check("logging", "Keep gameplay logs")}
+       ${local ? check("logging", "Keep gameplay logs") : ""}
+       ${local ? check("checkUpdates", "Check for updates") : ""}
+       ${this.data.history.length ? `<button data-act="reset" class="secondary">Reset run history…</button>` : ""}
+       ${note ? `<p class="muted">${esc(note)}</p>` : ""}
        <button data-act="back">Back</button>`,
     );
     for (const el of this.ui.querySelectorAll<HTMLInputElement>("input[data-set]")) {
@@ -341,9 +381,60 @@ export class App {
     }
   }
 
-  private closeOptions(): void {
-    if (this.optionsFrom === "paused") this.pause();
-    else this.showTitle();
+  /** Show a menu over the current screen, remembering where to go back to. */
+  private openMenu(menu: Menu, html: string): void {
+    if (!isMenu(this.state)) this.returnTo = this.state === "paused" ? "paused" : this.state === "over" ? "over" : "title";
+    this.state = menu;
+    this.screen(html);
+  }
+
+  /** Leave a menu: the reset confirmation goes back to Options, everything else to where it was opened. */
+  private back(): void {
+    if (this.state === "reset") return this.openOptions();
+    if (this.returnTo === "paused") return this.pause();
+    if (this.returnTo === "over" && this.overHtml) {
+      this.state = "over";
+      return this.screen(this.overHtml);
+    }
+    this.showTitle();
+  }
+
+  private openHelp(): void {
+    this.openMenu("help", helpHtml(cfg));
+    if (!this.data.helpSeen) {
+      this.data.helpSeen = true;
+      if (this.saveLoaded) void this.saver.save(this.data);
+    }
+  }
+
+  private resetHistory(): void {
+    this.data = resetHistory(this.data);
+    void this.saver.save(this.data);
+    this.openOptions("Run history erased.");
+  }
+
+  // ------------------------------------------------------------- updates
+
+  /** Desktop: once per launch, look for a newer release and mention it on the title screen. */
+  private checkUpdates(): void {
+    if (this.platform.kind === "browser" || !this.data.settings.checkUpdates) return;
+    void checkForUpdate(pkg.version).then((u) => {
+      this.update = u;
+      if (!u || this.state !== "title") return; // other screens pick it up when the title shows
+      // add the banner in place, so focus and scrolling stay where the player left them
+      this.ui.querySelector(".screen > h3")?.insertAdjacentHTML("beforebegin", this.updateBanner());
+      this.bindActions(this.ui.querySelector(".update"));
+    });
+  }
+
+  private updateBanner(): string {
+    const u = this.update;
+    if (!u || this.updateDismissed || !this.data.settings.checkUpdates) return "";
+    return `<div class="update">
+        <p><b>Version ${esc(u.version)} is out.</b> You have ${esc(pkg.version)}.</p>
+        <button data-act="update-get">Download it</button>
+        <button data-act="update-later" class="secondary">Later</button>
+      </div>`;
   }
 
   private showGameOver(): void {
@@ -367,8 +458,7 @@ export class App {
       void this.saver.save(this.data);
     }
     const rec = (k: RecordKey) => (records.includes(k) ? ` class="me"` : "");
-    this.screen(
-      `<h2>Overrun!</h2>
+    const html = `<h2>Overrun!</h2>
        ${records.length ? `<div class="badge">New record: ${records.map((k) => RECORD_NAME[k]).join(", ")}</div>` : ""}
        <table>
          <tr${rec("score")}><td>Final score</td><td class="num">${sc.score}</td></tr>
@@ -380,8 +470,10 @@ export class App {
            missed.length ? missed.map((m) => `${m.letter.toUpperCase()} ×${m.count}`).join(", ") : "none"
          }</td></tr>
        </table>
-       <button data-act="title">Back to title</button>`,
-    );
+       <button data-act="title">Back to title</button>
+       <button data-act="help" class="secondary">How to play</button>`;
+    this.overHtml = html;
+    this.screen(html);
     // Hold input briefly so Enter typed at the moment of death doesn't skip the stats.
     this.ui.inert = true;
     (document.activeElement as HTMLElement | null)?.blur?.();
@@ -401,11 +493,15 @@ export class App {
       return;
     }
     this.ui.innerHTML = `<div class="screen">${html}</div>`;
-    for (const b of this.ui.querySelectorAll<HTMLButtonElement>("button[data-act]")) {
-      b.addEventListener("click", () => this.act(b.dataset.act!));
-    }
+    this.bindActions(this.ui);
     const first = this.ui.querySelector<HTMLElement>("button");
     first?.focus();
+  }
+
+  private bindActions(root: Element | null): void {
+    for (const b of root?.querySelectorAll<HTMLButtonElement>("button[data-act]") ?? []) {
+      b.addEventListener("click", () => this.act(b.dataset.act!));
+    }
   }
 
   private act(a: string): void {
@@ -415,7 +511,27 @@ export class App {
       case "options":
         return this.openOptions();
       case "back":
-        return this.closeOptions();
+        return this.back();
+      case "help":
+        return this.openHelp();
+      case "about":
+        return this.openMenu("about", aboutHtml(pkg.version, this.platform));
+      case "tip":
+        return this.platform.openUrl(TIP_JAR);
+      case "source":
+        return this.platform.openUrl(REPO);
+      case "offline":
+      case "update-get":
+        return this.platform.openUrl(this.update?.url ?? RELEASES);
+      case "bug":
+        return this.platform.openUrl(bugReportUrl(pkg.version, this.platform.kind));
+      case "update-later":
+        this.updateDismissed = true;
+        return this.showTitle();
+      case "reset":
+        return this.openMenu("reset", resetConfirmHtml(this.data.history.length, this.platform.kind !== "browser"));
+      case "reset-yes":
+        return this.resetHistory();
       case "resume":
         return this.resume("button");
       case "quit":

@@ -293,3 +293,97 @@ input[type="checkbox"] {
   width: 0.5em;
   height: 0.5em;
 }
+
+/* How to play */
+.help {
+  text-align: left;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
+
+.help p {
+  margin: 0.4em 0;
+}
+
+.help ul {
+  margin: 0.2em 0;
+  padding-left: 1.2em;
+}
+
+.help li {
+  margin: 0.25em 0;
+}
+
+.help h3 {
+  color: #ffc53a;
+  opacity: 1;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 0.35em;
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 800;
+  text-align: center;
+  color: var(--ink);
+  background: var(--cream);
+  border: calc(var(--u) * 2) solid var(--ink);
+  border-radius: calc(var(--u) * 6);
+  box-shadow: 0 calc(var(--u) * 2) 0 var(--ink);
+}
+
+.help-enemies td {
+  padding: 0.3em 0.3em;
+  vertical-align: middle;
+}
+
+.help-enemies td:first-child {
+  width: 3.4em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.help-icon {
+  height: 2.6em;
+  width: auto;
+  vertical-align: middle;
+}
+
+.help-icon + .help-icon {
+  height: 1.6em;
+  margin-left: 0.2em;
+}
+
+/* About */
+.credits {
+  text-align: left;
+  font-size: 0.75em;
+  line-height: 1.4;
+}
+
+.credits p {
+  margin: 0.4em 0;
+}
+
+/* a newer release is out */
+.update {
+  margin: 0.8em 0 0.2em;
+  padding: 0.5em 0.8em;
+  border: calc(var(--u) * 3) solid #ffc53a;
+  border-radius: calc(var(--u) * 14);
+}
+
+.update p {
+  margin: 0.2em 0;
+}
+
+button.danger {
+  background: #ff6a4d;
+}
+
+button.danger:focus-visible,
+button.danger:hover {
+  background: #ff3b30;
+}

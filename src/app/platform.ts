@@ -16,6 +16,9 @@ export interface Platform {
   /** First and last line of every run log (JSONL), oldest first; "" where there are no logs. */
   logEnds(): Promise<string>;
   quit(): void;
+  /** Open one of the project's links (links.ts) in the system browser or a new tab. */
+  openUrl(url: string): void;
+  toggleFullscreen(): void;
   /** Desktop only: run `finish` before the window closes (the page is told first). */
   onCloseRequested(finish: () => Promise<void>): void;
 }
@@ -40,6 +43,8 @@ function desktop(tauri: TauriGlobal): Platform {
     pruneLogs: async (maxRuns, maxBytes) => void (await invoke("prune_logs", { maxRuns, maxBytes })),
     logEnds: async () => (await invoke("log_ends")) as string,
     quit: () => void invoke("quit"),
+    openUrl: (url) => void invoke("open_link", { url }).catch((err) => console.error("couldn't open link", err)),
+    toggleFullscreen: () => void invoke("toggle_fullscreen").catch((err) => console.error(err)),
     onCloseRequested: (finish) => {
       void tauri.event.listen("wf-close-requested", () => {
         finish()
@@ -48,6 +53,13 @@ function desktop(tauri: TauriGlobal): Platform {
       });
     },
   };
+}
+
+const openInTab = (url: string) => void window.open(url, "_blank", "noopener,noreferrer");
+
+function pageFullscreen(): void {
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  else void document.documentElement.requestFullscreen().catch(() => {});
 }
 
 function dev(): Platform {
@@ -69,6 +81,8 @@ function dev(): Platform {
     pruneLogs: async (runs, bytes) => void ok(await fetch(`/__wf/prune?runs=${runs}&bytes=${bytes}`, { method: "POST" })),
     logEnds: async () => (await ok(await fetch("/__wf/log-ends")).text()),
     quit: () => window.close(),
+    openUrl: openInTab,
+    toggleFullscreen: pageFullscreen,
     onCloseRequested: () => {},
   };
 }
@@ -83,6 +97,8 @@ function browser(): Platform {
     pruneLogs: async () => {},
     logEnds: async () => "",
     quit: () => window.close(),
+    openUrl: openInTab,
+    toggleFullscreen: pageFullscreen,
     onCloseRequested: () => {},
   };
 }

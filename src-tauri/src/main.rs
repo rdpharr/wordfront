@@ -13,7 +13,16 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, PhysicalSize, WebviewWindow, WindowEvent};
+use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
+
+/// The only pages the game may open in the browser: the project's own (src/app/links.ts).
+const LINK_PREFIXES: [&str; 3] = [
+    "https://github.com/rdpharr/wordfront",
+    "https://buymeacoffee.com/rdpharr",
+    "https://rdpharr.github.io/wordfront",
+];
 
 /// Set once at startup from the OS's per-user data folder.
 static DATA_DIR: OnceLock<Result<PathBuf, String>> = OnceLock::new();
@@ -139,19 +148,89 @@ fn log_ends() -> Result<String, String> {
 
 #[tauri::command]
 fn quit(app: AppHandle) {
+    save_and_exit(&app);
+}
+
+/// Remember the window's size, position and fullscreen state, then exit.
+fn save_and_exit(app: &AppHandle) {
+    let _ = app.save_window_state(StateFlags::all());
     app.exit(0);
+}
+
+/// One of LINK_PREFIXES exactly, or followed by a path or query; plain printable ASCII only.
+fn allowed_link(url: &str) -> bool {
+    url.bytes().all(|b| b.is_ascii_graphic() && b != b'"' && b != b'\\')
+        && LINK_PREFIXES.iter().any(|p| {
+            url.strip_prefix(p)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/') || rest.starts_with('?'))
+        })
+}
+
+#[tauri::command]
+fn open_link(app: AppHandle, url: String) -> Result<(), String> {
+    if !allowed_link(&url) {
+        return Err(format!("not a Wordfront link: {url}"));
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn toggle_fullscreen(window: WebviewWindow) -> Result<(), String> {
+    let full = window.is_fullscreen().map_err(|e| e.to_string())?;
+    window.set_fullscreen(!full).map_err(|e| e.to_string())
+}
+
+/// The default 540x940 window is taller than many laptop screens: shrink it, keeping its
+/// shape, to fit the monitor's work area (taskbar excluded), and centre it.
+fn fit_to_screen(win: &WebviewWindow) {
+    let (Ok(Some(mon)), Ok(outer), Ok(inner)) = (win.current_monitor(), win.outer_size(), win.inner_size()) else {
+        return;
+    };
+    let area = mon.work_area().size;
+    let (max_w, max_h) = (f64::from(area.width) * 0.95, f64::from(area.height) * 0.95);
+    if f64::from(outer.width) <= max_w && f64::from(outer.height) <= max_h {
+        return;
+    }
+    // the title bar and borders don't shrink
+    // (saturating: some window managers report an outer size no bigger than the inner one)
+    let deco_w = f64::from(outer.width.saturating_sub(inner.width));
+    let deco_h = f64::from(outer.height.saturating_sub(inner.height));
+    let k = ((max_w - deco_w) / f64::from(inner.width)).min((max_h - deco_h) / f64::from(inner.height));
+    if !(k.is_finite() && k > 0.0 && k < 1.0) {
+        return;
+    }
+    let size = PhysicalSize::new((f64::from(inner.width) * k) as u32, (f64::from(inner.height) * k) as u32);
+    let _ = win.set_size(size);
+    let _ = win.center();
 }
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             // Named "Wordfront" rather than after the app identifier, so the folder
             // stays the same if the identifier ever changes.
             let dir = app.path().data_dir().map(|d| d.join("Wordfront")).map_err(|e| e.to_string());
             let _ = DATA_DIR.set(dir);
+            // after the window-state plugin has put back the last size and position
+            if let Some(win) = app.get_webview_window("main") {
+                if !win.is_fullscreen().unwrap_or(false) {
+                    fit_to_screen(&win);
+                }
+            }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![load_save, write_save, append_log, prune_logs, log_ends, quit])
+        .invoke_handler(tauri::generate_handler![
+            load_save,
+            write_save,
+            append_log,
+            prune_logs,
+            log_ends,
+            quit,
+            open_link,
+            toggle_fullscreen
+        ])
         .on_window_event(|window, event| {
             // Let the game finish its run log before closing; it calls `quit` when done.
             // If it doesn't answer (e.g. the page is broken), close anyway after a moment.
@@ -161,7 +240,7 @@ fn main() {
                 let _ = window.emit("wf-close-requested", ());
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_millis(1500));
-                    app.exit(0);
+                    save_and_exit(&app);
                 });
             }
         })
@@ -171,7 +250,22 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::safe_log_name;
+    use super::{allowed_link, safe_log_name};
+
+    #[test]
+    fn links() {
+        assert!(allowed_link("https://github.com/rdpharr/wordfront"));
+        assert!(allowed_link("https://github.com/rdpharr/wordfront/releases/latest"));
+        assert!(allowed_link("https://github.com/rdpharr/wordfront/issues/new?body=Wordfront%200.1.0"));
+        assert!(allowed_link("https://buymeacoffee.com/rdpharr"));
+        assert!(allowed_link("https://rdpharr.github.io/wordfront/"));
+        assert!(!allowed_link("https://github.com/rdpharr/wordfront.evil.example"));
+        assert!(!allowed_link("https://github.com/rdpharr/wordfrontx"));
+        assert!(!allowed_link("https://evil.example/https://github.com/rdpharr/wordfront"));
+        assert!(!allowed_link("http://github.com/rdpharr/wordfront"));
+        assert!(!allowed_link("file:///C:/Windows/System32/calc.exe"));
+        assert!(!allowed_link("https://github.com/rdpharr/wordfront/ x"));
+    }
 
     #[test]
     fn log_names() {

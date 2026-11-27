@@ -12,6 +12,8 @@ export interface Settings {
   reducedMotion: boolean;
   screenShake: boolean;
   logging: boolean;
+  /** desktop: look for a newer release on GitHub at launch */
+  checkUpdates: boolean;
 }
 
 /** One finished run, as shown on the title screen's history charts. */
@@ -32,6 +34,8 @@ export interface SaveData {
   history: RunRecord[];
   /** set once runs from the gameplay logs have been folded into history */
   logsImported?: boolean;
+  /** set once the player has seen How to play (it opens by itself on the first launch) */
+  helpSeen?: boolean;
 }
 
 /** The measures the history charts track; higher is better for each. */
@@ -47,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: false,
   screenShake: true,
   logging: true,
+  checkUpdates: true,
 };
 
 const MAX_HISTORY = 1000;
@@ -98,6 +103,7 @@ export function parseSave(raw: string | null): SaveData {
         settings: { ...DEFAULT_SETTINGS, ...(d.settings ?? {}) },
         history: parseHistory(d),
         ...(d.logsImported === true ? { logsImported: true } : {}),
+        ...(d.helpSeen === true ? { helpSeen: true } : {}),
       };
     }
   } catch {
@@ -205,6 +211,14 @@ export function mergeRuns(history: readonly RunRecord[], extra: readonly RunReco
   }
   out.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   return out.slice(-MAX_HISTORY);
+}
+
+/**
+ * The save with its run history erased. The gameplay logs stay on disk, so this keeps
+ * logsImported set: otherwise the next launch would rebuild the history from them.
+ */
+export function resetHistory(d: SaveData): SaveData {
+  return { ...d, history: [], logsImported: true };
 }
 
 /** Append a finished run, keeping the newest MAX_HISTORY. */

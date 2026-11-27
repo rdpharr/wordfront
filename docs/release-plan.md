@@ -32,29 +32,33 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 
 ## Phase 2: In-game features
 
-- **Help screen:** how to play (type a word to lock on, finish it to fire, Esc to pause,
-  airstrikes, jams, enemy types). Reachable from the title, the pause menu and game over;
-  opens automatically on the first launch.
-- **Reset history:** in Options, with a confirmation step. It must keep `logsImported`
-  set (or delete the logs too), or the next launch rebuilds the history from the logs.
-- **About screen:** version, credits and licences (required: the word list's CC BY-SA 4.0
-  notice and its wordfreq/SCOWL/LDNOOBW credits, since every build ships it), Buy Me a Coffee link, "Report a bug"
-  (opens a GitHub issue with the version filled in). On desktop, links open in the
-  system browser (Tauri opener plugin).
-- **Update check (desktop only):** `tauri-plugin-updater` reads `latest.json` from the
-  latest GitHub release. "Version X is available" with Install / Later. A switch in
-  Options turns it off. Needs `connect-src` for GitHub in the CSP.
-- **Web version:** hide Quit, no update check, and a "Get the offline version" link to the
-  Releases page. Saves use the browser's localStorage, and gameplay logs are off.
-- **Window:** F11 fullscreen; remember window size and position. Check the 940 px default
-  height on 768/800 px-tall laptop screens.
+- [x] **Help screen** (`src/app/screens.ts`): how to aim, jams, streaks, airstrikes and each
+      enemy, with numbers taken from the config. From the title, the pause menu and game
+      over; opens by itself on the first launch (`helpSeen` in the save).
+- [x] **Reset history:** Options → "Reset run history…" → confirm. Keeps `logsImported` set
+      so the logs don't bring the runs back; the logs themselves stay.
+- [x] **About screen:** version, Buy Me a Coffee, source and releases, "Report a bug" (a new
+      GitHub issue with the version filled in), and credits including the word list's
+      CC BY-SA 4.0 notice. Desktop opens links through the `open_link` command, which only
+      allows the project's own pages.
+- [x] **Update check (desktop):** at launch it asks the GitHub API for the latest release;
+      if it's newer, the title screen says so with "Download it" (opens the release page)
+      and "Later". "Check for updates" in Options turns it off. In-place install moves to
+      Phase 3, because it needs the updater signing key.
+- [x] **Web version:** no Quit button, no logging or update options, "Get the offline
+      version" in About. Saves use the browser's localStorage.
+- [x] **Window:** F11 toggles fullscreen (desktop and web). The desktop app remembers size,
+      position and fullscreen (window-state plugin) and shrinks a window taller than the
+      screen to fit.
 
 ## Phase 3: Release pipeline (GitHub Actions)
 
 - **CI on every push and PR:** `npm run typecheck`, `npm test`, `cargo test`,
   `npm run version:check`.
 - **Pages:** build with Vite `base: "/wordfront/"` and deploy to GitHub Pages on push to
-  `main` (or on each release, so the web and offline versions match).
+  `main` (or on each release, so the web and offline versions match). Publish the first
+  release before or with the first Pages deploy: the web version's "Get the offline
+  version" opens `/releases/latest`, which is a 404 until a release exists.
 - **Release on a `v*` tag:** `tauri-action` builds on Windows, macOS and Ubuntu runners
   and publishes them to a GitHub Release (as a draft to check first):
   - Windows: `.exe` (NSIS) installer, plus `.msi`
@@ -62,6 +66,8 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
   - Linux: `.AppImage` and `.deb`
   - `latest.json` for the updater
 - **Bundling:** turn on `bundle.active` and list `icon.icns` and `icon.png` too.
+- **In-place updates:** add `tauri-plugin-updater` so "Download it" becomes "Install"
+  (the check and banner from Phase 2 stay as the fallback, e.g. for `.deb`).
 - **Updater signing key:** free, made with `npx tauri signer generate`. The private key and
   its password go in repo secrets, with a backup somewhere safe. If the key is lost,
   existing installs can never update again.
