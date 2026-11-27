@@ -26,7 +26,9 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 - [x] One version number: `package.json`. `tauri.conf.json` reads it; `npm version x.y.z`
       copies it into `Cargo.toml`/`Cargo.lock` (`npm run version:check` checks them)
 - [x] LICENSE, LICENSE-ASSETS.md, credits for art and music
-- [ ] Commit, create the public `rdpharr/wordfront` repo, push (default branch `main`)
+- [x] Commit, create the public `rdpharr/wordfront` repo, push (default branch `main`);
+      commits use the GitHub no-reply address
+- [x] Code review before every commit (`CLAUDE.md`, `.claude/hooks/review-gate.mjs`)
 
 ## Phase 2: In-game features
 
@@ -35,7 +37,8 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
   opens automatically on the first launch.
 - **Reset history:** in Options, with a confirmation step. It must keep `logsImported`
   set (or delete the logs too), or the next launch rebuilds the history from the logs.
-- **About screen:** version, credits and licences, Buy Me a Coffee link, "Report a bug"
+- **About screen:** version, credits and licences (required: the word list's CC BY-SA 4.0
+  notice and its wordfreq/SCOWL/LDNOOBW credits, since every build ships it), Buy Me a Coffee link, "Report a bug"
   (opens a GitHub issue with the version filled in). On desktop, links open in the
   system browser (Tauri opener plugin).
 - **Update check (desktop only):** `tauri-plugin-updater` reads `latest.json` from the
@@ -68,7 +71,8 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 
 - README: logo, gameplay GIF, a big "Play in your browser" link, "Offline version"
   downloads per OS, controls, privacy ("no telemetry, no accounts; the only network use
-  is the desktop update check, which you can turn off"), credits, tip jar.
+  is the desktop update check, which you can turn off"), credits, tip jar, and a licence
+  section linking `LICENSE-ASSETS.md` (LICENSE itself stays plain MIT so GitHub detects it).
 - Unsigned install notes:
   - Windows: "Windows protected your PC" → More info → Run anyway.
   - macOS: open it once, then System Settings → Privacy & Security → Open Anyway. If macOS

@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-The MIT License above covers Wordfront's source code. The art and music are
-dedicated to the public domain under CC0 1.0, and the word list
-(src/words.txt) is CC BY-SA 4.0 because of the data it is built from.
-See LICENSE-ASSETS.md for the details.
