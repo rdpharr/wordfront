@@ -6,6 +6,13 @@ All notable changes to Wordfront. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-27
+
+### Fixed
+
+- The Linux AppImage has sound: it now includes the GStreamer audio plugins the game
+  needs. The `.deb` and `.rpm` already used the system's copy.
+
 ## [0.9.1] - 2026-11-27
 
 ### Fixed
@@ -41,6 +48,7 @@ The first public release.
 
 - Code under MIT; art and music CC0; the word list CC BY-SA 4.0.
 
-[Unreleased]: https://github.com/rdpharr/wordfront/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/rdpharr/wordfront/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/rdpharr/wordfront/compare/v0.9.1...v1.0.0
 [0.9.1]: https://github.com/rdpharr/wordfront/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/rdpharr/wordfront/releases/tag/v0.9.0

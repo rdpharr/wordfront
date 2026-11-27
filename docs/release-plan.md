@@ -103,10 +103,7 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 - [x] Windows: the installed build plays, pauses, goes fullscreen (F11), shows the right
       version in About, and saves its window size on close.
 - [x] Web version in Chromium: loads from Pages, shows "0.9.x · web" in About.
-- [ ] macOS (Apple Silicon and Intel): install the `.dmg`, get past Gatekeeper with "Open
-      Anyway", play, and update from one release to the next.
-- [ ] Linux: the AppImage (which updates itself) and the `.deb` (which falls back to the
-      download page if it can't get admin rights).
-- [ ] Web version in Firefox and Safari.
-- [ ] A non-US keyboard layout (AZERTY, one with dead keys).
-- [ ] Tag v1.0.0 once the boxes above are ticked.
+- [x] Linux AppImage: it had no sound, because the webview plays audio through GStreamer and
+      the AppImage didn't include it. Fixed in 1.0.0 (`bundleMediaFramework`).
+- [x] Released v1.0.0 on 2026-11-27. Not tested before release, by decision: macOS, the
+      `.deb`/`.rpm`, Firefox and Safari, and non-US keyboard layouts. Fix what players report.
