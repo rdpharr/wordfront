@@ -83,18 +83,17 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 
 ## Phase 4: Repo polish
 
-- README: logo, gameplay GIF, a big "Play in your browser" link, "Offline version"
-  downloads per OS, controls, privacy ("no telemetry, no accounts; the only network use
-  is the desktop update check, which you can turn off"), credits, tip jar, and a licence
-  section linking `LICENSE-ASSETS.md` (LICENSE itself stays plain MIT so GitHub detects it).
-- Unsigned install notes:
-  - Windows: "Windows protected your PC" → More info → Run anyway.
-  - macOS: open it once, then System Settings → Privacy & Security → Open Anyway. If macOS
-    says the app is damaged: `xattr -dr com.apple.quarantine /Applications/Wordfront.app`.
-  - Linux: `chmod +x Wordfront*.AppImage`, or install the `.deb`.
-- `.github/FUNDING.yml` with `buy_me_a_coffee: rdpharr`.
-- `CHANGELOG.md`, bug and idea issue templates, repo description and topics, a
-  1280×640 social preview image.
+- [x] README (`README.md`): logo, gameplay animation (`docs/images/gameplay.webp`, a bot
+      playing the real renderer), a big "Play in your browser" link, offline downloads per
+      OS with the unsigned-install notes, controls, privacy, building it yourself, tip jar,
+      and a licence section linking `LICENSE-ASSETS.md` (LICENSE stays plain MIT so GitHub
+      detects it).
+- [x] `.github/FUNDING.yml` with `buy_me_a_coffee: rdpharr`.
+- [x] `CHANGELOG.md`; bug and idea issue forms (blank issues stay on for the in-game
+      "Report a bug" link).
+- [x] Repo description, website and topics.
+- [ ] Social preview: `docs/images/social-preview.png` (1280×640) is made; GitHub has no
+      API for it, so upload it under Settings → General → Social preview.
 
 ## Phase 5: Test and release
 

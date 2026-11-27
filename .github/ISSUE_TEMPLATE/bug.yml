@@ -1,0 +1,37 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What were you doing, and what went wrong? A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where were you playing?
+      options:
+        - Web version (in a browser)
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown on the About screen. For the web version, which browser too.
+      placeholder: 0.9.0, Firefox
+  - type: input
+    id: keyboard
+    attributes:
+      label: Keyboard layout
+      description: Only if it's about typing, e.g. US, UK, AZERTY, German.

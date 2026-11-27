@@ -14,6 +14,7 @@ This covers:
 - `assets/` (source art, music and the app icon)
 - `public/assets/`, `public/favicon.png`, `public/icon-192.png` (the processed copies the game loads)
 - `src-tauri/icons/` (desktop and mobile app icons)
+- `docs/images/` (the README's gameplay animation and the social preview, made from that art)
 
 They were made with ChatGPT (OpenAI) from the prompts in `docs/asset-prompts.md`, then
 trimmed, resized and converted by `tools/process_assets.py`.

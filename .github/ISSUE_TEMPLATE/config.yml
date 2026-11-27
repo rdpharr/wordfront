@@ -1,0 +1,6 @@
+# Blank issues stay on: the game's "Report a bug" button opens one with the version filled in.
+blank_issues_enabled: true
+contact_links:
+  - name: Play Wordfront
+    url: https://rdpharr.github.io/wordfront/
+    about: The web version, nothing to install.
