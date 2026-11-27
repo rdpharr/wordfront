@@ -74,6 +74,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          # the AppImage bundles these (bundleMediaFramework): the webview plays sound through
+          # GStreamer, and without them the AppImage is silent on machines that lack them
+          sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-pulseaudio
 
       - uses: actions/setup-node@v4
         with:
