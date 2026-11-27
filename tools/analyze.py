@@ -204,6 +204,16 @@ def report(con: duckdb.DuckDBPyConnection) -> None:
         if "requeued" in have
         else ""
     )
+    last_cost = (
+        "max(e.cost) filter (where e.type = 'airstrike_earned') as last_cost,"
+        if "cost" in have
+        else ""
+    )
+    spared = (
+        "coalesce(sum(e.spared) filter (where e.type = 'airstrike'), 0) as survived_strikes,"
+        if "spared" in have
+        else ""
+    )
     show(
         con,
         "Fairness: airstrikes used and earned back",
@@ -212,13 +222,17 @@ def report(con: duckdb.DuckDBPyConnection) -> None:
                count(*) filter (where e.type = 'airstrike') as used,
                count(*) filter (where e.type = 'airstrike_earned') as earned,
                {requeued}
+               {spared}
+               {last_cost}
                r.airstrikes_left as left_at_end
         from runs r left join ev e using (run_id)
         group by all order by r.run_id
         """,
         "earned = refilled by typing words (counts only while below the maximum). "
         "sent_back = enemies added back when a strike reset the wave to its full count "
-        "(runs before the reset show none, or count only what each strike destroyed).",
+        "(runs before the reset show none, or count only what each strike destroyed). "
+        "last_cost = words the last airstrike earned back cost (it climbs each time). "
+        "survived_strikes = enemies the blast reached that rode it out (far from the squad only).",
     )
     show(
         con,

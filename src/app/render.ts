@@ -21,6 +21,8 @@ const ROAD_BOTTOM = 152;
 const ROAD_SPEED = 22;
 /** how long the "wave restarted" banner shows after an airstrike resets the wave */
 const REGROUP_SECONDS = 2.0;
+/** How long a wrong letter stays on the word it was aimed at. */
+const WRONG_SECONDS = 0.6;
 /** screen px per road strip; perspective changes ~0.1% per strip, so this is invisible */
 const STRIP = 8;
 
@@ -90,6 +92,8 @@ export class Renderer {
   private switchHint = 0;
   /** "wave reset" note after an airstrike starts the wave over */
   private regroup = { n: 0, t: 0 };
+  /** the last wrong letter typed at a locked word, shown in red on that word */
+  private wrong = { id: -1, ch: "", t: 0 };
   private scroll = 0;
   private muzzle: number[] = SOLDIERS.map(() => 0);
   private nextShooter = 0;
@@ -150,6 +154,7 @@ export class Renderer {
     this.aimY = 0;
     this.waveToast = 0;
     this.regroup = { n: 0, t: 0 };
+    this.wrong = { id: -1, ch: "", t: 0 };
     this.switchHint = 0;
     this.strikePulse = 0;
     this.muzzle.fill(0);
@@ -165,6 +170,9 @@ export class Renderer {
           if (e.correct) {
             this.muzzle[this.nextShooter] = 0.07;
             this.nextShooter = (this.nextShooter + 1) % SOLDIERS.length;
+            if (e.id === this.wrong.id) this.wrong.t = 0; // fixed it: the red letter goes
+          } else if (e.id !== null) {
+            this.wrong = { id: e.id, ch: e.char, t: WRONG_SECONDS };
           }
           break;
         case "hit":
@@ -260,6 +268,7 @@ export class Renderer {
     this.scroll += dt * ROAD_SPEED;
     this.waveToast = Math.max(0, this.waveToast - dt);
     this.regroup.t = Math.max(0, this.regroup.t - dt);
+    this.wrong.t = Math.max(0, this.wrong.t - dt);
     this.flash = Math.max(0, this.flash - dt * 3);
     this.strikePulse = Math.max(0, this.strikePulse - dt);
     this.switchHint = sim.showSwitchHint ? Math.min(1, this.switchHint + dt * 8) : Math.max(0, this.switchHint - dt * 4);
@@ -307,7 +316,10 @@ export class Renderer {
     if (!f.hideWords) {
       const lock = sim.lockTarget;
       for (const e of sim.enemies) if (!e.dying && e !== lock) this.drawLabel(e, f.alpha, false, f, danger.has(e.id));
-      if (lock) this.drawLabel(lock, f.alpha, true, f, danger.has(lock.id), this.switchHint, sim.jamT > 0);
+      if (lock) {
+        const wrong = this.wrong.t > 0 && this.wrong.id === lock.id ? this.wrong.ch : "";
+        this.drawLabel(lock, f.alpha, true, f, danger.has(lock.id), this.switchHint, sim.jamT > 0, wrong);
+      }
     }
     c.restore();
 
@@ -583,7 +595,17 @@ export class Renderer {
 
   // ------------------------------------------------------------ text
 
-  private drawLabel(e: Enemy, alpha: number, locked: boolean, f: FrameInfo, danger = false, hint = 0, jammed = false): void {
+  private drawLabel(
+    e: Enemy,
+    alpha: number,
+    locked: boolean,
+    f: FrameInfo,
+    danger = false,
+    hint = 0,
+    jammed = false,
+    /** a wrong letter just typed at this word: drawn struck through in red before it */
+    wrong = "",
+  ): void {
     const c = this.ctx;
     const text = remaining(e);
     if (!text || e.stray) return;
@@ -593,7 +615,8 @@ export class Renderer {
     const size = (f.settings.largeLabels ? 24 : 18) * (alarm ? 1.35 + 0.1 * pulse : 1);
     const hc = f.settings.highContrast;
     c.font = `800 ${size}px ${FONT}`;
-    const tw = c.measureText(text).width;
+    const ww = wrong ? c.measureText(wrong).width + size * 0.12 : 0;
+    const tw = c.measureText(text).width + ww;
     const padX = size * 0.5;
     const h = size * 1.45;
     const w = tw + padX * 2;
@@ -614,9 +637,21 @@ export class Renderer {
       c.lineWidth = alarm ? 4 : danger && !locked ? 3 : 2;
       c.stroke();
     }
-    c.fillStyle = locked ? (hc ? "#ffff00" : "#ffa53a") : "#ffffff";
     c.textBaseline = "middle";
-    c.fillText(text, lx + padX, ly + h / 2 + 1);
+    if (wrong) {
+      const red = hc ? "#ff4040" : "#ff3b30";
+      const mid = ly + h / 2 + 1;
+      c.fillStyle = red;
+      c.fillText(wrong, lx + padX, mid);
+      c.strokeStyle = red;
+      c.lineWidth = Math.max(2, size * 0.1);
+      c.beginPath();
+      c.moveTo(lx + padX - 1, mid);
+      c.lineTo(lx + padX + ww - size * 0.12 + 1, mid);
+      c.stroke();
+    }
+    c.fillStyle = locked ? (hc ? "#ffff00" : "#ffa53a") : "#ffffff";
+    c.fillText(text, lx + padX + ww, ly + h / 2 + 1);
     if (hint > 0) this.drawSwitchHint(lx + w / 2, ly + h + 4, hint, hc);
   }
 
@@ -719,7 +754,7 @@ export class Renderer {
     c.font = `700 12px ${FONT}`;
     c.fillText("AIRSTRIKE ⏎", 388, 23);
     const icon = this.assets.img.airstrike_icon;
-    const { max, refillEvery } = sim.cfg.emp;
+    const { max, refillStart } = sim.cfg.emp;
     for (let i = 0; i < max; i++) {
       c.globalAlpha = i < sim.empsLeft ? 1 : 0.2;
       // the newest airstrike pops in when earned
@@ -728,13 +763,19 @@ export class Renderer {
     }
     c.globalAlpha = 1;
     // progress toward the next one (words typed), while below max
-    if (sim.empsLeft < max && refillEvery > 0) {
+    if (sim.empsLeft < max && refillStart > 0) {
       const x = 468;
       const bw = 52;
+      const cost = sim.refillCost;
+      // words toward the next one; the price climbs with each one earned
+      c.font = `700 11px ${FONT}`;
+      c.textAlign = "right";
+      c.fillText(`${sim.refillProgress}/${cost}`, x + bw, 23);
+      c.textAlign = "left";
       c.fillStyle = "rgba(0,0,0,0.45)";
       c.fillRect(x, 38, bw, 8);
       c.fillStyle = "#ffc53a";
-      c.fillRect(x, 38, (bw * sim.refillProgress) / refillEvery, 8);
+      c.fillRect(x, 38, (bw * sim.refillProgress) / cost, 8);
       c.strokeStyle = "#2b1d12";
       c.lineWidth = 2;
       c.strokeRect(x, 38, bw, 8);

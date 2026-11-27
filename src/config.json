@@ -57,10 +57,15 @@
   "bolt": { "speed": 800 },
   "emp": {
     "count": 3, "max": 3, "radius": 400, "duration": 1.0,
-    "refillEvery": 12,
-    "_refillNote": "Typing this many words (Bullets don't count) earns an airstrike back, up to max. The count only runs while below max.",
+    "refillStart": 12,
+    "refillStep": 4,
+    "refillMax": 0,
+    "_refillNote": "Typed words (Bullets don't count) earn airstrikes back, up to max; the count only runs while below max. The first one back costs refillStart words and each one after costs refillStep more (12, 16, 20, ...) for the rest of the run. refillMax caps the cost (0 = no cap). refillStart 0 turns earning off.",
     "resetWave": true,
     "respawnDelay": 1.5,
+    "surviveChance": 0.25,
+    "surviveBeyond": 200,
+    "_surviveNote": "Each Mine, Destroyer or Oppressor the blast reaches farther than surviveBeyond from the squad has surviveChance of riding it out, so a strike thins the field instead of wiping it. Nothing closer survives, and projectiles never do.",
     "_resetWaveNote": "With resetWave, an airstrike starts the wave over: when the strike ends, the queue refills so the enemies left to kill (on screen plus still to come) are the wave's full count again, with new words. A strike buys breathing room, not progress. No new enemy spawns for duration + respawnDelay seconds after a strike."
   },
   "waves": {

@@ -48,11 +48,19 @@ export interface Tunables {
   emp: {
     count: number;
     max: number;
-    refillEvery: number;
+    /** words for the first airstrike earned back; each later one costs refillStep more */
+    refillStart: number;
+    refillStep: number;
+    /** cap on the cost (0 = none) */
+    refillMax: number;
     resetWave: boolean;
     respawnDelay: number;
     radius: number;
     duration: number;
+    /** chance a Mine/Destroyer/Oppressor beyond surviveBeyond rides out the blast */
+    surviveChance: number;
+    /** world px from the squad's centre; nothing closer survives */
+    surviveBeyond: number;
   };
   waves: RawConfig["waves"];
   uniqueFirstLetterTries: number;
@@ -124,11 +132,16 @@ export function resolveConfig(c: RawConfig = raw): Tunables {
     emp: {
       count: c.emp.count,
       max: c.emp.max,
-      refillEvery: c.emp.refillEvery,
+      // old run logs (replays) carry a flat refillEvery instead
+      refillStart: c.emp.refillStart ?? (c.emp as { refillEvery?: number }).refillEvery ?? 0,
+      refillStep: c.emp.refillStep ?? 0,
+      refillMax: c.emp.refillMax ?? 0,
       resetWave: c.emp.resetWave,
       respawnDelay: c.emp.respawnDelay,
       radius: c.emp.radius * k,
       duration: c.emp.duration,
+      surviveChance: c.emp.surviveChance ?? 0,
+      surviveBeyond: (c.emp.surviveBeyond ?? 0) * k,
     },
     waves: c.waves,
     uniqueFirstLetterTries: c.words.uniqueFirstLetterTries,

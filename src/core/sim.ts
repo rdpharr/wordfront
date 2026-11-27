@@ -33,6 +33,8 @@ export class Sim {
   empsLeft: number;
   /** words typed toward the next airstrike refill (only counts while below emp.max) */
   refillProgress = 0;
+  /** airstrikes earned back this run; each makes the next one cost more */
+  strikesEarned = 0;
   lockId: number | null = null;
   /** Wrong letters in a row on the current lock (drives the "Backspace: switch target" hint). */
   lockedMisses = 0;
@@ -273,14 +275,23 @@ export class Sim {
     e.fireT = Math.min(t.fireEvery, e.fireT + t.delayPerLetter);
   }
 
+  /** Words the next airstrike costs: refillStart, plus refillStep for each one already earned back. */
+  get refillCost(): number {
+    const c = this.cfg.emp;
+    const cost = c.refillStart + c.refillStep * this.strikesEarned;
+    return c.refillMax > 0 ? Math.min(c.refillMax, cost) : cost;
+  }
+
   /** One typed word toward earning an airstrike back. */
   private creditRefill(): void {
     const c = this.cfg.emp;
-    if (c.refillEvery <= 0 || this.empsLeft >= c.max) return;
-    if (++this.refillProgress < c.refillEvery) return;
+    if (c.refillStart <= 0 || this.empsLeft >= c.max) return;
+    const cost = this.refillCost;
+    if (++this.refillProgress < cost) return;
     this.refillProgress = 0;
+    this.strikesEarned++;
     this.empsLeft++;
-    this.emit({ type: "airstrike_earned", left: this.empsLeft });
+    this.emit({ type: "airstrike_earned", left: this.empsLeft, cost });
   }
 
   private missLetter(ch: string, expected: string | null, e: Enemy | null): void {
@@ -318,7 +329,7 @@ export class Sim {
     this.empsLeft--;
     const live = this.enemies.filter((e) => !e.dying);
     const nearest = live.length ? Math.min(...live.map((e) => this.dist(e))) : null;
-    this.emp = { t: 0, r: 0, destroyed: 0, requeued: 0, nearestBefore: nearest };
+    this.emp = { t: 0, r: 0, destroyed: 0, requeued: 0, nearestBefore: nearest, fate: new Map(), spared: 0 };
     this.spawnHold = this.cfg.emp.duration + this.cfg.emp.respawnDelay;
     this.emit({ type: "emp_fire", left: this.empsLeft });
   }
@@ -576,7 +587,7 @@ export class Sim {
     emp.r = c.radius * Math.min(1, emp.t / c.duration);
     const survivors: Enemy[] = [];
     for (const e of this.enemies) {
-      if (!e.dying && this.dist(e) <= emp.r) {
+      if (!e.dying && this.dist(e) <= emp.r && !this.ridesOut(e, emp)) {
         emp.destroyed++;
         if (this.lockId === e.id) this.lockId = null;
         this.emit({
@@ -600,12 +611,32 @@ export class Sim {
       this.emit({
         type: "airstrike",
         destroyed: emp.destroyed,
+        spared: emp.spared,
         requeued: emp.requeued,
         toGo: this.queue.length + this.liveQueuedKinds().length,
         nearestBefore: emp.nearestBefore,
       });
       this.emp = null;
     }
+  }
+
+  /**
+   * The blast front just reached `e` (or reached it earlier): does it survive? Decided
+   * once per enemy. Only Mines, Destroyers and Oppressors far enough from the squad
+   * get a chance; projectiles and anything close never survive.
+   */
+  private ridesOut(e: Enemy, emp: Emp): boolean {
+    const known = emp.fate.get(e.id);
+    if (known !== undefined) return known;
+    const c = this.cfg.emp;
+    const lucky =
+      c.surviveChance > 0 &&
+      QUEUED_KINDS.has(e.kind) &&
+      this.dist(e) > c.surviveBeyond &&
+      this.rng.next() < c.surviveChance;
+    emp.fate.set(e.id, lucky);
+    if (lucky) emp.spared++;
+    return lucky;
   }
 
   /** Mines, Destroyers and Oppressors still alive on screen. */

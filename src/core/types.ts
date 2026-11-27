@@ -53,6 +53,9 @@ export interface Emp {
   /** enemies added back to the wave's queue when the strike reset the wave */
   requeued: number;
   nearestBefore: number | null;
+  /** ids the blast has reached, and whether each rode it out */
+  fate: Map<number, boolean>;
+  spared: number;
 }
 
 export type SimInput = { kind: "char"; ch: string } | { kind: "backspace" } | { kind: "emp" };
@@ -108,8 +111,16 @@ export type SimEvent = Base &
       }
     | { type: "fire"; id: number; kind: "missile" | "bullets" }
     | { type: "emp_fire"; left: number }
-    | { type: "airstrike_earned"; left: number }
-    | { type: "airstrike"; destroyed: number; requeued: number; toGo: number; nearestBefore: number | null }
+    | { type: "airstrike_earned"; left: number; /** words this one cost */ cost: number }
+    | {
+        type: "airstrike";
+        destroyed: number;
+        /** enemies the blast reached that rode it out */
+        spared: number;
+        requeued: number;
+        toGo: number;
+        nearestBefore: number | null;
+      }
     | { type: "close_call"; id: number; kind: EnemyKind; lettersLeft: number }
     | { type: "incoming"; id: number; kind: EnemyKind; eta: number }
     | {

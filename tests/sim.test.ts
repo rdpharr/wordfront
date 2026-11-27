@@ -158,6 +158,45 @@ describe("EMP", () => {
     expect(s.queue).toHaveLength(total);
   });
 
+  it("some enemies far from the squad ride out the blast; nothing close and no projectile does", () => {
+    const s = emptySim();
+    const { x: px, y: py } = cfg.player;
+    // a ring well inside the blast but beyond surviveBeyond, plus a ring close in
+    const ringR = (cfg.emp.surviveBeyond + cfg.emp.radius) / 2;
+    const far = [];
+    const near = [];
+    const shots = [];
+    for (let i = 0; i < 40; i++) {
+      const a = -Math.PI * (0.3 + (0.4 * i) / 39); // fan across the field above the squad, all on screen
+      far.push(s.addEnemy("mine", px + Math.cos(a) * ringR, py + Math.sin(a) * ringR, `far${i}`));
+      shots.push(s.addEnemy("bullet", px + Math.cos(a) * ringR, py + Math.sin(a) * ringR - 20, "q", -Math.PI / 2));
+      near.push(s.addEnemy("mine", px + Math.cos(a) * 150, py - 150 + Math.sin(a) * 20, `near${i}`));
+    }
+    s.step([{ kind: "emp" }]);
+    const evs = stepN(s, 70);
+    const alive = new Set(s.enemies.map((e) => e.id));
+    const spared = far.filter((e) => alive.has(e.id));
+    expect(near.some((e) => alive.has(e.id))).toBe(false);
+    expect(shots.some((e) => alive.has(e.id))).toBe(false);
+    expect(spared.length).toBeGreaterThan(40 * cfg.emp.surviveChance * 0.4);
+    expect(spared.length).toBeLessThan(40 * cfg.emp.surviveChance * 2);
+    expect(ofType(evs, "airstrike")[0]!.spared).toBe(spared.length);
+    // a survivor's fate is settled once: it isn't re-rolled on later steps of the strike
+    expect(ofType(evs, "kill").filter((k) => spared.some((e) => e.id === k.id))).toHaveLength(0);
+  });
+
+  it("with surviveChance 0, the blast spares no one", () => {
+    const raw = structuredClone(rawConfig);
+    raw.emp.surviveChance = 0;
+    const s = newSim(1, raw);
+    s.queue = [];
+    const r = (cfg.emp.surviveBeyond + cfg.emp.radius) / 2;
+    for (let i = 0; i < 20; i++) s.addEnemy("mine", 60 + i * 21, cfg.player.y - r, `m${i}`);
+    s.step([{ kind: "emp" }]);
+    const evs = stepN(s, 70);
+    expect(ofType(evs, "airstrike")[0]).toMatchObject({ destroyed: 20, spared: 0 });
+  });
+
   it("with resetWave off, destroyed enemies are gone for good", () => {
     const raw = structuredClone(rawConfig);
     raw.emp.resetWave = false;
@@ -172,15 +211,16 @@ describe("EMP", () => {
 });
 
 describe("airstrike refill", () => {
-  const refillSim = () => {
+  const refillSim = (step = 0) => {
     const raw = structuredClone(rawConfig);
-    raw.emp.refillEvery = 2;
+    raw.emp.refillStart = 2;
+    raw.emp.refillStep = step;
     const s = newSim(1, raw);
     s.queue = [];
     return s;
   };
 
-  it("earns one back every refillEvery typed words; bullets don't count", () => {
+  it("earns one back after refillStart typed words; bullets don't count", () => {
     const s = refillSim();
     s.empsLeft = 1;
     s.addEnemy("mine", 100, 100, "cow");
@@ -191,9 +231,44 @@ describe("airstrike refill", () => {
     expect(s.empsLeft).toBe(1);
     expect(s.refillProgress).toBe(1);
     evs = typeEach(s, "dog");
-    expect(ofType(evs, "airstrike_earned")).toEqual([expect.objectContaining({ left: 2 })]);
+    expect(ofType(evs, "airstrike_earned")).toEqual([expect.objectContaining({ left: 2, cost: 2 })]);
     expect(s.empsLeft).toBe(2);
     expect(s.refillProgress).toBe(0);
+  });
+
+  it("each airstrike earned back costs refillStep more words than the last", () => {
+    const s = refillSim(1); // 2, 3, 4 ...
+    s.empsLeft = 0;
+    const words = ["ant", "bee", "cat", "dog", "elk", "fox", "gnu", "hen", "ibis"];
+    words.forEach((w, i) => s.addEnemy("mine", 30 + i * 55, 100, w));
+    const evs = typeEach(s, words.join(""));
+    expect(ofType(evs, "airstrike_earned").map((e) => e.cost)).toEqual([2, 3, 4]);
+    expect(s.strikesEarned).toBe(3);
+    expect(s.empsLeft).toBe(3);
+    expect(s.refillCost).toBe(5);
+    // using one doesn't make the next cheaper: the price only climbs
+    s.step([{ kind: "emp" }]);
+    expect(s.refillCost).toBe(5);
+  });
+
+  it("refillMax caps the cost; the shipped curve is 12, 16, 20, ...", () => {
+    const raw = structuredClone(rawConfig);
+    raw.emp.refillMax = 18;
+    const s = newSim(1, raw);
+    s.strikesEarned = 5;
+    expect(s.refillCost).toBe(18);
+    const shipped = newSim(1);
+    expect([0, 1, 2, 3].map((n) => ((shipped.strikesEarned = n), shipped.refillCost))).toEqual([12, 16, 20, 24]);
+  });
+
+  it("old configs with a flat refillEvery still resolve (replaying old logs)", () => {
+    const raw = structuredClone(rawConfig) as Record<string, any>;
+    delete raw.emp.refillStart;
+    delete raw.emp.refillStep;
+    delete raw.emp.refillMax;
+    raw.emp.refillEvery = 12;
+    const t = resolveConfig(raw as typeof rawConfig);
+    expect(t.emp).toMatchObject({ refillStart: 12, refillStep: 0, refillMax: 0 });
   });
 
   it("never goes above max, and doesn't bank progress while full", () => {
