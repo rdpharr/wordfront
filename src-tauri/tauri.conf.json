@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Wordfront",
-  "version": "0.1.0",
-  "identifier": "com.wordfront.game",
+  "version": "../package.json",
+  "identifier": "io.github.rdpharr.wordfront",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5199",

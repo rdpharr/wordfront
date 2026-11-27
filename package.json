@@ -3,6 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "description": "Wordfront: an arcade typing shooter",
+  "license": "MIT",
+  "author": "rdpharr",
+  "homepage": "https://rdpharr.github.io/wordfront/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rdpharr/wordfront.git"
+  },
+  "bugs": "https://github.com/rdpharr/wordfront/issues",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +21,9 @@
     "replay": "tsx tools/replay.ts",
     "simulate": "tsx tools/simulate.ts",
     "analyze": "uv run -q --no-project --with duckdb==2.0.1 python -I tools/analyze.py",
-    "assets": "python tools/process_assets.py"
+    "assets": "python tools/process_assets.py",
+    "version": "node tools/sync_version.mjs && git add src-tauri/Cargo.toml src-tauri/Cargo.lock",
+    "version:check": "node tools/sync_version.mjs --check"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.6",

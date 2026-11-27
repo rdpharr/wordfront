@@ -12,7 +12,7 @@ function body(req: IncomingMessage): Promise<string> {
   });
 }
 
-/** Dev-only endpoints so browser runs read and write %APPDATA%/Wordfront like the desktop build. */
+/** Dev-only endpoints so browser runs read and write the same data folder as the desktop build. */
 function datastore(): Plugin {
   return {
     name: "wordfront-datastore",

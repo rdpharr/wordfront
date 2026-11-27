@@ -19,3 +19,15 @@ To rebuild: install wordfreq in a throwaway environment, download the two lists,
 ```
 python -I tools/build_words.py --dic en_US.dic --aff en_US.aff --blocklist en --out src/words.txt
 ```
+
+## Art and music
+
+All art and both music tracks were generated with ChatGPT (OpenAI) from the prompts in
+`docs/asset-prompts.md`, then processed by `tools/process_assets.py`. They are dedicated to
+the public domain under CC0 1.0; see `LICENSE-ASSETS.md`.
+
+## Licences in short
+
+- Code: MIT (`LICENSE`)
+- Art and music: CC0 1.0 (`LICENSE-ASSETS.md`)
+- `src/words.txt`: CC BY-SA 4.0, because it is derived from wordfreq's data (`LICENSE-ASSETS.md`)

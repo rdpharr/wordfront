@@ -2,6 +2,8 @@
 name = "wordfront"
 version = "0.1.0"
 description = "Wordfront: an arcade typing shooter"
+license = "MIT"
+repository = "https://github.com/rdpharr/wordfront"
 edition = "2021"
 
 [build-dependencies]

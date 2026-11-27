@@ -1,5 +1,7 @@
 /**
- * The game's data folder on disk (%APPDATA%/Wordfront): save.json and logs/.
+ * The game's data folder on disk: save.json and logs/, in a Wordfront folder under the
+ * OS's per-user data folder (%APPDATA% on Windows, ~/Library/Application Support on
+ * macOS, $XDG_DATA_HOME or ~/.local/share on Linux), matching the desktop build.
  * Used by the Vite dev server so browser runs persist exactly where the desktop
  * build does; the desktop build has the same operations in Rust (src-tauri).
  */
@@ -9,7 +11,15 @@ import path from "node:path";
 
 export function dataDir(): string {
   if (process.env.WORDFRONT_DATA_DIR) return process.env.WORDFRONT_DATA_DIR;
-  const base = process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming");
+  const home = os.homedir();
+  const base =
+    process.platform === "win32"
+      ? (process.env.APPDATA ?? path.join(home, "AppData", "Roaming"))
+      : process.platform === "darwin"
+        ? path.join(home, "Library", "Application Support")
+        : process.env.XDG_DATA_HOME && path.isAbsolute(process.env.XDG_DATA_HOME)
+          ? process.env.XDG_DATA_HOME
+          : path.join(home, ".local", "share"); // XDG ignores a relative value, as Tauri does
   return path.join(base, "Wordfront");
 }
 

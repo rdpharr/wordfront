@@ -1,22 +1,31 @@
 // No console window in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-//! Wordfront desktop shell: shows the game and keeps its data in
-//! %APPDATA%/Wordfront (save.json and logs/), the same folder and the same
-//! operations as the dev server (dev/datastore.ts).
+//! Wordfront desktop shell: shows the game and keeps its data (save.json and logs/)
+//! in a Wordfront folder under the OS's per-user data folder, the same folder and the
+//! same operations as the dev server (dev/datastore.ts):
+//! - Windows: %APPDATA%\Wordfront
+//! - macOS:   ~/Library/Application Support/Wordfront
+//! - Linux:   $XDG_DATA_HOME/Wordfront (usually ~/.local/share/Wordfront)
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+
+/// Set once at startup from the OS's per-user data folder.
+static DATA_DIR: OnceLock<Result<PathBuf, String>> = OnceLock::new();
 
 fn data_dir() -> Result<PathBuf, String> {
     if let Ok(dir) = std::env::var("WORDFRONT_DATA_DIR") {
         return Ok(PathBuf::from(dir));
     }
-    let base = std::env::var("APPDATA").map_err(|_| "APPDATA is not set".to_string())?;
-    Ok(PathBuf::from(base).join("Wordfront"))
+    DATA_DIR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| Err("the data folder isn't known yet".to_string()))
 }
 
 /// run-YYYYMMDD-HHMMSS(-xxxx).jsonl and nothing else, so a name can't escape logs/.
@@ -135,6 +144,13 @@ fn quit(app: AppHandle) {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Named "Wordfront" rather than after the app identifier, so the folder
+            // stays the same if the identifier ever changes.
+            let dir = app.path().data_dir().map(|d| d.join("Wordfront")).map_err(|e| e.to_string());
+            let _ = DATA_DIR.set(dir);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![load_save, write_save, append_log, prune_logs, log_ends, quit])
         .on_window_event(|window, event| {
             // Let the game finish its run log before closing; it calls `quit` when done.

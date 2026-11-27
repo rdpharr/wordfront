@@ -1,6 +1,6 @@
 /**
  * Where the game keeps its data. Same operations everywhere:
- * - desktop build (Tauri): Rust commands writing %APPDATA%/Wordfront
+ * - desktop build (Tauri): Rust commands writing the per-user data folder (e.g. %APPDATA%/Wordfront)
  * - dev server: /__wf endpoints writing the same folder
  * - a plain browser (e.g. the built page opened directly): localStorage, no logs
  */
