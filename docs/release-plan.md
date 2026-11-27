@@ -53,25 +53,27 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
 
 ## Phase 3: Release pipeline (GitHub Actions)
 
-- **CI on every push and PR:** `npm run typecheck`, `npm test`, `cargo test`,
-  `npm run version:check`.
-- **Pages:** build with Vite `base: "/wordfront/"` and deploy to GitHub Pages on push to
-  `main` (or on each release, so the web and offline versions match). Publish the first
-  release before or with the first Pages deploy: the web version's "Get the offline
-  version" opens `/releases/latest`, which is a 404 until a release exists.
-- **Release on a `v*` tag:** `tauri-action` builds on Windows, macOS and Ubuntu runners
-  and publishes them to a GitHub Release (as a draft to check first):
-  - Windows: `.exe` (NSIS) installer, plus `.msi`
-  - macOS: `.dmg` for Apple Silicon and Intel (or one universal build)
-  - Linux: `.AppImage` and `.deb`
-  - `latest.json` for the updater
-- **Bundling:** turn on `bundle.active` and list `icon.icns` and `icon.png` too.
-- **In-place updates:** add `tauri-plugin-updater` so "Download it" becomes "Install"
-  (the check and banner from Phase 2 stay as the fallback, e.g. for `.deb`).
-- **Updater signing key:** free, made with `npx tauri signer generate`. The private key and
-  its password go in repo secrets, with a backup somewhere safe. If the key is lost,
-  existing installs can never update again.
-- Linux: only the AppImage can update itself; `.deb` users download new versions.
+- [x] **CI** (`.github/workflows/ci.yml`), on every push to `main` and every PR:
+      version check, typecheck, unit tests, the game build, the Pages build and the Rust tests.
+- [x] **Installers:** `bundle.active` with every target: Windows `.exe` (NSIS) and `.msi`,
+      macOS `.dmg` for Apple Silicon and Intel (ad-hoc signed, so macOS offers "Open Anyway"
+      instead of calling it damaged), Linux `.AppImage`, `.deb` and `.rpm`.
+- [x] **Release** (`.github/workflows/release.yml`): push a `v*` tag that matches
+      package.json and it builds all four into a draft GitHub Release, with download and
+      unsigned-install notes (`.github/release-notes.md`). One job creates the draft first so
+      the four builds don't race to create duplicates. Running it by hand builds the installers
+      as workflow artifacts without releasing anything.
+- [x] **Web version** (`.github/workflows/pages.yml`): deploys to GitHub Pages
+      (`WF_BASE=/wordfront/`) when a release is published, so the web and offline versions
+      match, and the "Get the offline version" link never 404s. One-time setup before the
+      first deploy: Pages source "GitHub Actions", and a deployment tag rule `v*` on the
+      `github-pages` environment (it only allows `main` at first, and a release run's ref is its tag).
+- [ ] **Updater signing key:** free, made with `npx tauri signer generate`. The private key and
+      its password go in repo secrets, with a backup somewhere safe. If the key is lost,
+      existing installs can never update again.
+- [ ] **In-place updates:** `tauri-plugin-updater` turns "Download it" into "Install"; the
+      release workflow then also publishes `latest.json`. The Phase 2 banner stays as the
+      fallback (e.g. for `.deb`, which can't update itself; only the AppImage can on Linux).
 
 ## Phase 4: Repo polish
 

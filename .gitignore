@@ -5,3 +5,4 @@ sim-logs/
 *.duckdb
 src-tauri/target/
 src-tauri/gen/
+dist-pages/

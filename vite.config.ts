@@ -53,6 +53,8 @@ function datastore(): Plugin {
 }
 
 export default defineConfig({
+  // GitHub Pages serves the web version from /wordfront/ (WF_BASE is set by the Pages workflow)
+  base: process.env.WF_BASE || "/",
   plugins: [datastore()],
   server: { port: 5199, strictPort: true },
   build: { target: "es2022" },

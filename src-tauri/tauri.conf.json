@@ -28,7 +28,28 @@
     }
   },
   "bundle": {
-    "active": false,
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"]
+    "active": true,
+    "targets": "all",
+    "publisher": "rdpharr",
+    "category": "Game",
+    "copyright": "Copyright © 2026 rdpharr. MIT License.",
+    "shortDescription": "An arcade typing shooter",
+    "longDescription": "Enemies march down the road toward your squad. Type the words on them to shoot them before they reach the barricade. Free and open source.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "section": "games"
+      }
+    }
   }
 }
