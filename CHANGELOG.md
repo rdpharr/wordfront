@@ -6,6 +6,13 @@ All notable changes to Wordfront. The format follows
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-27
+
+### Fixed
+
+- The "Wave cleared" banner no longer shows through the pause menu.
+- A test that could time out on slow build machines no longer holds up a release.
+
 ## [0.9.0] - 2026-11-27
 
 The first public release.
@@ -34,5 +41,6 @@ The first public release.
 
 - Code under MIT; art and music CC0; the word list CC BY-SA 4.0.
 
-[Unreleased]: https://github.com/rdpharr/wordfront/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/rdpharr/wordfront/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/rdpharr/wordfront/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/rdpharr/wordfront/releases/tag/v0.9.0

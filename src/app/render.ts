@@ -333,7 +333,8 @@ export class Renderer {
     }
 
     this.drawHud(sim);
-    if (sim.phase === "break")
+    // banners stay hidden under the pause menu, like the words
+    if (sim.phase === "break" && !f.hideWords)
       this.drawBanner(`WAVE ${sim.wave} CLEARED`, `Accuracy ${(sim.waveAccuracy * 100).toFixed(1)}%`);
     else if (sim.phase === "wave" && this.waveToast > 0 && !f.hideWords)
       this.drawBanner(`WAVE ${sim.wave}`, null, Math.min(1, this.waveToast * 2));

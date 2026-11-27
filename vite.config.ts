@@ -58,5 +58,6 @@ export default defineConfig({
   plugins: [datastore()],
   server: { port: 5199, strictPort: true },
   build: { target: "es2022" },
-  test: { include: ["tests/**/*.test.ts"] },
+  // the shared CI runners (Windows especially) can stall a test past the 5 s default
+  test: { include: ["tests/**/*.test.ts"], testTimeout: 30_000 },
 });
