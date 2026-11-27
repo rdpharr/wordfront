@@ -63,6 +63,7 @@ export class App {
   private overHtml = "";
   private update: Update | null = null;
   private updateDismissed = false;
+  private updateStatus: "" | "installing" | "failed" = "";
   /** false if save.json couldn't be read at launch: then nothing is saved just for opening How to play */
   private saveLoaded = false;
 
@@ -265,6 +266,11 @@ export class App {
   // ------------------------------------------------------------- flow
 
   private newGame(): void {
+    if (this.updateStatus === "installing") {
+      // the app restarts when it's done; point at the banner that says so
+      this.ui.querySelector<HTMLElement>(".update")?.focus();
+      return;
+    }
     this.audio.unlock();
     const seed = (Math.random() * 2 ** 32) >>> 0;
     this.sim = new Sim(cfg, bank, seed);
@@ -430,11 +436,55 @@ export class App {
   private updateBanner(): string {
     const u = this.update;
     if (!u || this.updateDismissed || !this.data.settings.checkUpdates) return "";
-    return `<div class="update">
-        <p><b>Version ${esc(u.version)} is out.</b> You have ${esc(pkg.version)}.</p>
-        <button data-act="update-get">Download it</button>
+    const head = `<p><b>Version ${esc(u.version)} is out.</b> You have ${esc(pkg.version)}.</p>`;
+    if (this.updateStatus === "installing") {
+      return `<div class="update" tabindex="-1" aria-live="polite">${head}<p>Installing… Wordfront restarts when it's done.</p></div>`;
+    }
+    if (this.updateStatus === "failed" || this.platform.kind !== "desktop") {
+      const why = this.updateStatus === "failed" ? `<p>It couldn't install itself here. Get it from the download page.</p>` : "";
+      return `<div class="update" aria-live="polite">${head}${why}
+          <button data-act="update-get">Download it</button>
+          <button data-act="update-later" class="secondary">Later</button>
+        </div>`;
+    }
+    return `<div class="update">${head}
+        <button data-act="update-install">Install it</button>
         <button data-act="update-later" class="secondary">Later</button>
       </div>`;
+  }
+
+  /** Redraw the banner in place, keeping focus on it when it had it. */
+  private redrawUpdateBanner(): void {
+    const old = this.ui.querySelector(".update");
+    if (!old) return;
+    const hadFocus = old.contains(document.activeElement);
+    old.insertAdjacentHTML("afterend", this.updateBanner());
+    old.remove();
+    const banner = this.ui.querySelector<HTMLElement>(".update");
+    this.bindActions(banner);
+    if (hadFocus) (banner?.querySelector<HTMLButtonElement>("button") ?? banner)?.focus();
+  }
+
+  private installUpdate(): void {
+    if (this.updateStatus === "installing") return;
+    this.updateStatus = "installing";
+    this.redrawUpdateBanner();
+    // the restart skips the close handshake, so let any save in progress finish first
+    this.saver
+      .idle()
+      .then(() => this.platform.installUpdate())
+      .then((installed) => {
+        // installed: the app is restarting. Not installed: nothing for this build yet, so open the page.
+        if (installed) return;
+        this.updateStatus = "failed";
+        this.platform.openUrl(this.update?.url ?? RELEASES);
+        this.redrawUpdateBanner();
+      })
+      .catch((err) => {
+        console.error("update failed", err);
+        this.updateStatus = "failed";
+        this.redrawUpdateBanner();
+      });
   }
 
   private showGameOver(): void {
@@ -525,6 +575,8 @@ export class App {
         return this.platform.openUrl(this.update?.url ?? RELEASES);
       case "bug":
         return this.platform.openUrl(bugReportUrl(pkg.version, this.platform.kind));
+      case "update-install":
+        return this.installUpdate();
       case "update-later":
         this.updateDismissed = true;
         return this.showTitle();

@@ -68,12 +68,18 @@ Getting Wordfront ready to publish. Decided 2026-11-26.
       match, and the "Get the offline version" link never 404s. One-time setup before the
       first deploy: Pages source "GitHub Actions", and a deployment tag rule `v*` on the
       `github-pages` environment (it only allows `main` at first, and a release run's ref is its tag).
-- [ ] **Updater signing key:** free, made with `npx tauri signer generate`. The private key and
-      its password go in repo secrets, with a backup somewhere safe. If the key is lost,
-      existing installs can never update again.
-- [ ] **In-place updates:** `tauri-plugin-updater` turns "Download it" into "Install"; the
-      release workflow then also publishes `latest.json`. The Phase 2 banner stays as the
-      fallback (e.g. for `.deb`, which can't update itself; only the AppImage can on Linux).
+      Both done; the web version is live.
+- [x] **Updater signing key:** made with `npx tauri signer generate` (`~/.tauri/wordfront.key`).
+      The private key and its password are repo secrets (`TAURI_SIGNING_PRIVATE_KEY`,
+      `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`); keep a backup somewhere safe. If the key is lost,
+      existing installs can never update again. A local `tauri build` needs the same two
+      environment variables, since it signs the update bundles too.
+- [x] **In-place updates:** `tauri-plugin-updater`. The banner's "Install it" downloads the new
+      version, checks it against the public key in `tauri.conf.json`, installs it and restarts.
+      If this copy can't install it (e.g. the release has nothing for it yet, or a `.deb`/`.rpm`
+      install can't get admin rights), it opens the download page instead. The release
+      workflow's `updater-manifest` job writes `latest.json` once every build has uploaded
+      (`tools/updater_manifest.ts`); installs read it from the latest published release.
 
 ## Phase 4: Repo polish
 

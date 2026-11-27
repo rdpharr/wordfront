@@ -15,6 +15,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, PhysicalSize, WebviewWindow, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 /// The only pages the game may open in the browser: the project's own (src/app/links.ts).
@@ -174,6 +175,29 @@ fn open_link(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+/// Download the latest release (checked against the public key in tauri.conf.json),
+/// install it and start it. Ok(false) when there's nothing this build can install,
+/// e.g. no entry for it in latest.json yet; the game then offers the download page.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<bool, String> {
+    let handle = app.clone();
+    let updater = app
+        .updater_builder()
+        // Windows: the installer takes over and the app exits without saying goodbye
+        .on_before_exit(move || {
+            let _ = handle.save_window_state(StateFlags::all());
+        })
+        .build()
+        .map_err(|e| e.to_string())?;
+    let Some(update) = updater.check().await.map_err(|e| e.to_string())? else {
+        return Ok(false);
+    };
+    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+    // macOS and Linux: the new version is in place; start it
+    let _ = app.save_window_state(StateFlags::all());
+    app.restart();
+}
+
 #[tauri::command]
 fn toggle_fullscreen(window: WebviewWindow) -> Result<(), String> {
     let full = window.is_fullscreen().map_err(|e| e.to_string())?;
@@ -208,6 +232,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Named "Wordfront" rather than after the app identifier, so the folder
             // stays the same if the identifier ever changes.
@@ -229,7 +254,8 @@ fn main() {
             log_ends,
             quit,
             open_link,
-            toggle_fullscreen
+            toggle_fullscreen,
+            install_update
         ])
         .on_window_event(|window, event| {
             // Let the game finish its run log before closing; it calls `quit` when done.

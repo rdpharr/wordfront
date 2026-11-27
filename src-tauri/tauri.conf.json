@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "publisher": "rdpharr",
     "category": "Game",
     "copyright": "Copyright © 2026 rdpharr. MIT License.",
@@ -49,6 +50,15 @@
     "linux": {
       "deb": {
         "section": "games"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2QjVDRTc3RTE4M0QxOTIKUldTUzBZUGhkODYxZGtDMlo4Ykw2T3hGN1BjUFJMS3BKUkRDcTBCc0RvbnN4Ynl6YlREak1JcW8K",
+      "endpoints": ["https://github.com/rdpharr/wordfront/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

@@ -19,6 +19,9 @@ export interface Platform {
   /** Open one of the project's links (links.ts) in the system browser or a new tab. */
   openUrl(url: string): void;
   toggleFullscreen(): void;
+  /** Desktop: download and install the latest release, then restart into it. Resolves
+   *  false when there's nothing this build can install itself; rejects when it fails. */
+  installUpdate(): Promise<boolean>;
   /** Desktop only: run `finish` before the window closes (the page is told first). */
   onCloseRequested(finish: () => Promise<void>): void;
 }
@@ -45,6 +48,7 @@ function desktop(tauri: TauriGlobal): Platform {
     quit: () => void invoke("quit"),
     openUrl: (url) => void invoke("open_link", { url }).catch((err) => console.error("couldn't open link", err)),
     toggleFullscreen: () => void invoke("toggle_fullscreen").catch((err) => console.error(err)),
+    installUpdate: async () => (await invoke("install_update")) as boolean,
     onCloseRequested: (finish) => {
       void tauri.event.listen("wf-close-requested", () => {
         finish()
@@ -83,6 +87,7 @@ function dev(): Platform {
     quit: () => window.close(),
     openUrl: openInTab,
     toggleFullscreen: pageFullscreen,
+    installUpdate: async () => false,
     onCloseRequested: () => {},
   };
 }
@@ -99,6 +104,7 @@ function browser(): Platform {
     quit: () => window.close(),
     openUrl: openInTab,
     toggleFullscreen: pageFullscreen,
+    installUpdate: async () => false,
     onCloseRequested: () => {},
   };
 }

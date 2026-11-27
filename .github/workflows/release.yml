@@ -95,11 +95,16 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # signs the update bundles; the public half is in tauri.conf.json
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npx tauri
           args: ${{ matrix.args }}
           # a manual run has no release: build only
           releaseId: ${{ needs.create-release.outputs.id }}
+          # written once by the updater-manifest job instead
+          includeUpdaterJson: false
 
       - name: Keep the installers (manual run)
         if: "!startsWith(github.ref, 'refs/tags/')"
@@ -110,3 +115,26 @@ jobs:
             src-tauri/target/release/bundle/
             src-tauri/target/*/release/bundle/
           if-no-files-found: error
+
+  # latest.json, which installed copies read to find the update, written once from every
+  # build's signature (tools/updater_manifest.ts).
+  updater-manifest:
+    needs: [create-release, build]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Upload latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir sigs
+          gh release download "$GITHUB_REF_NAME" --pattern '*.sig' --dir sigs
+          npx tsx tools/updater_manifest.ts sigs "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" > latest.json
+          cat latest.json
+          gh release upload "$GITHUB_REF_NAME" latest.json --clobber
