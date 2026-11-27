@@ -6,6 +6,8 @@ All notable changes to Wordfront. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-27
+
 The first public release.
 
 ### The game
@@ -32,4 +34,5 @@ The first public release.
 
 - Code under MIT; art and music CC0; the word list CC BY-SA 4.0.
 
-[Unreleased]: https://github.com/rdpharr/wordfront/commits/main
+[Unreleased]: https://github.com/rdpharr/wordfront/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/rdpharr/wordfront/releases/tag/v0.9.0
